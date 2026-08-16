@@ -23,9 +23,9 @@ const COLUMNS: { key: SortKey; label: string; align: string }[] = [
   { key: "where", label: "Whereabouts", align: "" },
 ];
 
-// The footing mark: ▲ ascending, ▼ descending, on the active column only.
-function mark(key: SortKey): string {
-  return sortKey.value === key ? (sortDir.value === "asc" ? " ▲" : " ▼") : "";
+// The footing caret: ▴ ascending, ▾ descending, in ember, on the active column.
+function caret(key: SortKey): string {
+  return sortKey.value === key ? (sortDir.value === "asc" ? "▴" : "▾") : "";
 }
 
 const foot = computed(() => {
@@ -54,7 +54,11 @@ const foot = computed(() => {
           class="sl-column-head text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-sl-lamp"
           :class="[
             col.align,
-            sortKey === col.key ? 'text-sl-ink' : 'text-sl-ink-soft hover:text-sl-ink',
+            // Active head: brightened ash word + a drawn 2px ichor subtotal
+            // rule beneath (ichor as a RULE, never inked text) + an ember caret.
+            sortKey === col.key
+              ? 'text-sl-ink border-b-2 border-sl-lamp'
+              : 'text-sl-ink-soft hover:text-sl-ink',
           ]"
           :aria-sort="
             sortKey === col.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'
@@ -62,7 +66,10 @@ const foot = computed(() => {
           :data-testid="`sort-${col.key}`"
           @click="sortBy(col.key)"
         >
-          {{ col.label }}{{ mark(col.key) }}
+          {{ col.label
+          }}<span v-if="caret(col.key)" class="text-sl-ember ml-[3px]" aria-hidden="true">{{
+            caret(col.key)
+          }}</span>
         </button>
       </div>
 

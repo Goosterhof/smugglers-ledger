@@ -41,7 +41,7 @@ const hands = computed(() => [
         class="sl-column-head normal-case tracking-[0.4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-sl-lamp"
         :class="tierCut.has(tier) ? 'border-b-2' : 'opacity-60 hover:opacity-100'"
         :style="{
-          color: `var(--sl-tier-${tier})`,
+          color: `var(--sl-loot-${tier})`,
           borderColor: tierCut.has(tier) ? `var(--sl-loot-${tier})` : undefined,
         }"
         :aria-pressed="tierCut.has(tier)"

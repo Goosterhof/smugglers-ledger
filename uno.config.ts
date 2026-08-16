@@ -29,27 +29,31 @@ export default defineConfig({
   transformers: [transformerVariantGroup()],
   theme: {
     colors: {
-      // Soot ground — the room you stand in
-      // BLOOD & PARCHMENT (Lot C) — these MUST track the :root custom
-      // properties below; UnoCSS resolves bg-sl-*/text-sl-* utilities through
-      // this map, while inline var(--sl-*) styles read :root. Two surfaces,
-      // one palette — edit both or the page ships half-brown.
-      "sl-soot": "#171210",
-      "sl-cellar": "#201815",
-      "sl-iron": "#3D2E26",
-      "sl-chalk": "#CBB89A",
-      "sl-chalk-soft": "#A0917A",
-      "sl-lamp": "#E0705E",
-      "sl-oxblood": "#A32E24",
+      // IRON & ICHOR (#00013, hybrid — investor-ruled 2026-08-16) — one cold
+      // near-black ground, light ash text EVERYWHERE (no polarity flip), the
+      // game's loot colours as the rarity words, one blood-red accent. These
+      // MUST track the :root custom properties below verbatim; UnoCSS resolves
+      // bg-sl-*/text-sl-* through this map, inline var(--sl-*) reads :root.
+      // Every ratio is computed (WCAG 2.x); do not "tidy" a value without
+      // re-deriving it. Cold near-black grounds:
+      "sl-soot": "#05070A",
+      "sl-cellar": "#080B10",
+      "sl-iron": "#1E232B",
+      "sl-folio": "#0A0D12",
+      "sl-folio-shade": "#10141B",
+      // Cooled bone-grey ash (light on dark); ink == chalk, polarity is uniform:
+      "sl-chalk": "#BCC1C2",
+      "sl-chalk-soft": "#7E8790",
+      "sl-ink": "#BCC1C2",
+      "sl-ink-soft": "#949A9C",
+      "sl-rule": "rgba(188,193,194,0.13)",
+      "sl-rule-strong": "rgba(188,193,194,0.28)",
+      // The one accent (ichor — rule/edge/glyph only), the ember secondary,
+      // the correction reds:
+      "sl-lamp": "#D95C4C",
+      "sl-ember": "#C98F3E",
+      "sl-wax": "#E0705E",
       "sl-wax-lit": "#EC8574",
-      // Folio ground — the page you read
-      "sl-folio": "#E5D9BC",
-      "sl-folio-shade": "#D9CCAA",
-      "sl-ink": "#241D16",
-      "sl-ink-soft": "rgba(36,29,22,0.68)",
-      "sl-rule": "rgba(36,29,22,0.18)",
-      "sl-rule-strong": "rgba(36,29,22,0.42)",
-      "sl-wax": "#8E2B22",
     },
     fontFamily: {
       folio: "'IM Fell English', 'Iowan Old Style', serif",
@@ -86,61 +90,58 @@ export default defineConfig({
 const PREFLIGHT_CSS = `
         :root {
           color-scheme: dark;
-          /* -- soot ground -- */
-          /* BLOOD & PARCHMENT (Lot C, investor-ruled 2026-08-16): Grim Dawn's
-             own chrome — the blood-red of the logo and health globe over
-             darkened leather, page as true aged parchment. Every value below
-             carries a measured WCAG ratio; the lamp SPLIT is load-bearing —
-             deep oxblood (#A32E24) is legible-irrelevant (it only tints the
-             non-text wash), while the interactive lamp is a LIT blood-red so
-             chrome labels clear 4.5:1 on the dark room (oxblood-as-text was
-             2.6:1 and failed). */
-          --sl-soot: #171210;          /* darkened leather — the room */
-          --sl-cellar: #201815;        /* strip / panel ground */
-          --sl-iron: #3D2E26;          /* dark borders */
-          --sl-chalk: #CBB89A;         /* dark-room text — 9.6:1 on soot */
-          --sl-chalk-soft: #A0917A;    /* dimmed secondary — 6.0:1 on soot */
-          --sl-lamp: #E0705E;          /* LIT blood-red — interactive accent, 5.9:1 on soot / 5.5:1 on strip */
-          --sl-oxblood: #A32E24;       /* deep blood — wash + non-text borders ONLY, never a text colour */
-          --sl-wax-lit: #EC8574;       /* the Refused alarm red — 7.2:1 on soot */
-          /* -- folio ground (aged parchment) -- */
-          --sl-folio: #E5D9BC;
-          --sl-folio-shade: #D9CCAA;
-          --sl-ink: #241D16;           /* 11.9:1 on parchment */
-          --sl-ink-soft: rgba(36,29,22,0.68); /* 4.9:1 on folio / 4.6:1 on shade — verified, do not lower the alpha */
-          --sl-rule: rgba(36,29,22,0.18);
-          --sl-rule-strong: rgba(36,29,22,0.42);
-          --sl-wax: #8E2B22;           /* the strike red on parchment — 6.0:1, a bookkeeper's correction */
-          /* -- rarity ink ramp (six ordinals; stamp glyph first, colour second) -- */
-          --sl-tier-0: #3A342A;
-          --sl-tier-1: #6B5810;
-          --sl-tier-2: #2F5E3A;
-          --sl-tier-3: #2A4E78;
-          --sl-tier-4: #5A3A78;
-          --sl-tier-5: #8A3A12;
-          /* -- loot chips: the game's own rarity hues, vivid, carried by a
-                stamped swatch (never by text — the tier inks above keep the
-                words WCAG-legible on cream). White/Yellow/Green/Blue/Purple
-                per the game's loot labels; Quest keeps the amber family. -- */
-          --sl-loot-0: #E9E6DE;
-          --sl-loot-1: #E3C53C;
-          --sl-loot-2: #54B65C;
-          --sl-loot-3: #5E8DE0;
-          --sl-loot-4: #A468E0;
-          --sl-loot-5: #D6923A;
+          /* IRON & ICHOR (#00013, hybrid — investor-ruled 2026-08-16): one cold
+             near-black ground, light ash text EVERYWHERE (no polarity flip),
+             the game's own loot colours as the rarity WORDS, one blood-red
+             ichor accent (rule/edge/glyph only). The dark ground is FORCED, not
+             stylistic — rarity=game-colour makes Rare green, so a green ground
+             would fight the green word; red is the only accent touching none of
+             the six loot hues, and a dark ground is what makes those hues
+             legible as text. Every value carries a computed WCAG ratio (2.x);
+             do not "tidy" one without re-deriving it. THIS map mirrors
+             theme.colors above verbatim. Cold near-black grounds: */
+          --sl-soot: #05070A;          /* the room / app background */
+          --sl-cellar: #080B10;        /* rails, tab spine, wings, panels */
+          --sl-iron: #1E232B;          /* borders on the room + the plate's lit top/left catch-light */
+          --sl-folio: #0A0D12;         /* THE SHEET / plate — one value-step up from the room */
+          --sl-folio-shade: #10141B;   /* the counting band + column-head field */
+          /* Cooled bone-grey ash — light on dark, uniform polarity (ink == chalk): */
+          --sl-chalk: #BCC1C2;         /* primary text on the room — 11.09:1 soot */
+          --sl-chalk-soft: #7E8790;    /* muted labels on the room — 5.53:1 soot */
+          --sl-ink: #BCC1C2;           /* primary text on the sheet — 10.70:1 folio (== chalk, the flip is gone) */
+          --sl-ink-soft: #949A9C;      /* secondary on the sheet — 6.82:1 folio (SOLID ash, NOT an alpha) */
+          --sl-rule: rgba(188,193,194,0.13);       /* hairline ruling — light-alpha so it reads on dark */
+          --sl-rule-strong: rgba(188,193,194,0.28); /* separators, sheet edge, margin rule */
+          /* The one accent, the ember secondary, the correction reds: */
+          --sl-lamp: #D95C4C;          /* ichor — rule/edge/glyph ONLY, never small body text (clears 3:1 as a rule everywhere) */
+          --sl-ember: #C98F3E;         /* warm brass — stat magnitudes, footed totals, the sort caret — 6.93:1 folio */
+          --sl-wax: #E0705E;           /* the correction red as small text (struck word, Strike/Lift verbs) — 6.16:1 folio */
+          --sl-wax-lit: #EC8574;       /* the Refused/flagged alarm on the room — 7.85:1 soot */
+          /* Rarity words — the game's loot ladder, now TEXT on the sheet (ratio on --sl-folio): */
+          --sl-loot-0: #E9E6DE;        /* Common — 15.60:1 */
+          --sl-loot-1: #E3C53C;        /* Magical — 11.41:1 */
+          --sl-loot-2: #54B65C;        /* Rare — 7.62:1 */
+          --sl-loot-3: #5E8DE0;        /* Epic — 5.90:1 (tightest; the dark ground lifts it above the light-page 5.00) */
+          --sl-loot-4: #B07EE6;        /* Legendary — 6.46:1 (the one lift, from game #A468E0) */
+          --sl-loot-5: #D6923A;        /* Quest — 7.44:1 */
           /* -- rhythm -- */
           --sl-pitch: 26px;
           --sl-margin-rule: 56px;
           --sl-gutter: 24px;
-          /* -- the one shadow, the one lamp -- */
-          --sl-shadow-folio: 6px 6px 0 rgba(0,0,0,0.55);
-          --sl-lamp-wash: radial-gradient(120% 80% at 50% -10%, rgba(163,46,36,0.15) 0%, rgba(163,46,36,0.05) 38%, transparent 68%);
+          /* -- the one shadow, the light source -- */
+          --sl-shadow-folio: 6px 6px 0 rgba(0,0,0,0.70);
+          --sl-lamp-wash:
+            radial-gradient(120% 80% at 42% -10%, rgba(217,92,76,0.07) 0%, rgba(217,92,76,0.025) 40%, transparent 70%),
+            radial-gradient(130% 100% at 50% 38%, transparent 34%, rgba(0,0,0,0.62) 100%);
           /* -- motion -- */
           --sl-dur-ink: 1500ms;
           --sl-dur-swap: 160ms;
           --sl-dur-nudge: 90ms;
           --sl-ease-settle: cubic-bezier(0.2, 0, 0.1, 1);
-          /* -- semantic aliases (soot values; .sl-folio remaps them) -- */
+          /* -- semantic aliases — one dark ground, no polarity flip, so these
+                are globally correct and the .sl-folio remap is RETIRED
+                (Iron & Ichor dissolves #00012's var()-indirection trap by
+                construction: there is no second ground to re-declare for) -- */
           --sl-surface: var(--sl-soot);
           --sl-text: var(--sl-chalk);
           --sl-text-muted: var(--sl-chalk-soft);
@@ -148,19 +149,6 @@ const PREFLIGHT_CSS = `
           --sl-accent: var(--sl-lamp);
           --sl-input-bg: var(--sl-surface);
           --sl-input-line: var(--sl-iron);
-        }
-        /* The folio scope: a local alias remap, not a second theme.
-           THE TRAP, restated: var()-indirected maps bake at the declaring
-           element, so every indirected alias is RE-DECLARED here from the
-           folio primitives — never merely inherited (#00012, The Two Grounds). */
-        .sl-folio {
-          --sl-surface: var(--sl-folio);
-          --sl-text: var(--sl-ink);
-          --sl-text-muted: var(--sl-ink-soft);
-          --sl-line: var(--sl-rule);
-          --sl-accent: var(--sl-wax);
-          --sl-input-bg: var(--sl-folio);
-          --sl-input-line: var(--sl-rule-strong);
         }
         html, body, #app { height: 100%; }
         body {

@@ -37,15 +37,17 @@ const tier = computed(() => (item && item.tier >= 0 && item.tier <= 5 ? item.tie
     @focus="emit('readout', item)"
   >
     <template v-if="item !== null">
-      <!-- Full-cell rarity wash — the item's footprint, in the game's own hue -->
+      <!-- Full-cell rarity wash — the item's footprint, in the game's own hue.
+           Lower alpha on the dark ground so the wash reads as a tint, not a
+           block; the loot hues are bright, a little goes far on iron. -->
       <span
-        class="absolute inset-0 opacity-[0.28]"
+        class="absolute inset-0 opacity-[0.22]"
         :style="{ background: `var(--sl-loot-${tier})` }"
         aria-hidden="true"
       />
       <!-- Solid corner tick — rarity, unambiguous even where the wash is faint -->
       <span
-        class="absolute top-0 left-0 w-[8px] h-[8px] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.35)]"
+        class="absolute top-0 left-0 w-[8px] h-[8px]"
         :style="{ background: `var(--sl-loot-${tier})` }"
         aria-hidden="true"
       />

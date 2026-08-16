@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// The folio — the lit page. The `.sl-folio` scope class lives here and
-// nowhere else: it carries the full alias remap AND every re-declared
-// indirected map (the var()-indirection trap, #00012 The Two Grounds).
+// The sheet — the iron plate, one value-step up from the room. Iron & Ichor
+// is dark-everywhere (no polarity flip), so the #00012 `.sl-folio` alias remap
+// is RETIRED: the :root aliases are globally correct and there is no second
+// ground to re-declare. The var()-indirection trap dissolves by construction.
 import { computed } from "vue";
 import { useLedger } from "@/composables/useLedger";
 
@@ -17,7 +18,7 @@ const lastTurned = computed(() => {
 
 <template>
   <section
-    class="sl-folio relative bg-sl-folio text-sl-ink p-[32px_40px] shadow-folio overflow-y-auto"
+    class="relative bg-sl-folio text-sl-ink p-[32px_40px] shadow-folio overflow-y-auto"
     aria-label="The ledger"
   >
     <header class="flex items-baseline justify-between h-[26px] mb-[26px]">
@@ -31,19 +32,3 @@ const lastTurned = computed(() => {
     </div>
   </section>
 </template>
-
-<style>
-/* The alias remap. Re-declare INDIRECTED maps here too — a :root map of
-   var()-to-var() bakes at :root and inherits the SOOT value into the page
-   (ink-on-paper-compositing.md; #00012 calls this the trap that bites). */
-.sl-folio {
-  --sl-surface: var(--sl-folio);
-  --sl-text: var(--sl-ink);
-  --sl-text-muted: var(--sl-ink-soft);
-  --sl-line: var(--sl-rule);
-  --sl-accent: var(--sl-wax);
-  /* re-declared indirected map — NOT inherited: */
-  --sl-input-bg: var(--sl-folio);
-  --sl-input-line: var(--sl-rule-strong);
-}
-</style>
