@@ -1,0 +1,42 @@
+{
+  "name": "smugglers-ledger",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "The Smuggler's Ledger — one searchable overview of everything you own across the whole of Cairn",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "lint": "oxlint --type-aware",
+    "lint:fix": "oxlint --type-aware --fix",
+    "format": "oxfmt --write src/",
+    "format:check": "oxfmt --check src/"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
+    "@tauri-apps/plugin-log": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "vue": "^3.5.35"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@unocss/preset-attributify": "^66.7.0",
+    "@unocss/preset-icons": "^66.7.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/test-utils": "^2.4.6",
+    "happy-dom": "^15.11.7",
+    "oxfmt": "^0.61.0",
+    "oxlint": "^1.76.0",
+    "oxlint-tsgolint": "^7.0.2001",
+    "typescript": "~5.6.2",
+    "unocss": "^66.7.0",
+    "vite": "^6.0.3",
+    "vitest": "^2.1.9",
+    "vue-tsc": "^2.1.10"
+  }
+}

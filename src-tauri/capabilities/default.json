@@ -1,0 +1,15 @@
+{
+  "$schema": "./gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capabilities for the Ledger's main window — the manual folder picker (RD-4's fallback, never the front door), save-changed event listening, and logging. No shell, no HTTP: the Ledger is offline and local by design.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-show",
+    "core:window:allow-set-focus",
+    "core:event:default",
+    "opener:default",
+    "dialog:default",
+    "log:default"
+  ]
+}
