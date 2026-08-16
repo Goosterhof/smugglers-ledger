@@ -2,8 +2,9 @@
 // The margin rail — the room's furniture, on the soot, never on the page.
 // THE ROOT: the chosen save root plus every other discovered root as a
 // one-click switch (RD-4 — a second profile's hoard must never be silently
-// invisible). THE HANDS: the ten characters, flagged ones struck. THE MARKS:
-// the rarity legend, ordinals settled by the bench enumeration.
+// invisible). THE HANDS: the ten characters, flagged ones struck. (THE MARKS
+// glyph legend was retired 2026-08-16 with the RarityMark component — rarity
+// is the coloured word now, no glyphs to legend.)
 import { computed } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useLedger } from "@/composables/useLedger";
@@ -25,9 +26,6 @@ async function pickRootByHand(): Promise<void> {
     await switchRoot(picked);
   }
 }
-
-const TIER_GLYPHS = ["·", "◦", "◇", "◆", "✦", "✷"] as const;
-const TIER_NAMES = ["Common", "Magical", "Rare", "Epic", "Legendary", "Quest"] as const;
 </script>
 
 <template>
@@ -72,20 +70,6 @@ const TIER_NAMES = ["Common", "Magical", "Rare", "Epic", "Legendary", "Quest"] a
         </span>
         <span v-if="hand.flagged === null" class="tabular-nums">{{ hand.level }}</span>
       </button>
-    </section>
-
-    <section aria-label="The marks">
-      <h2 class="sl-chrome-label text-sl-chalk-soft mb-[8px]">The Marks</h2>
-      <p class="font-figure text-[11px] leading-[18px] text-sl-chalk-soft">
-        <span
-          v-for="(glyph, tier) in TIER_GLYPHS"
-          :key="tier"
-          class="mr-[8px]"
-          :title="TIER_NAMES[tier]"
-        >
-          {{ glyph }}
-        </span>
-      </p>
     </section>
   </aside>
 </template>

@@ -39,6 +39,10 @@ const hits = shallowRef<LedgerHit[]>([]);
 const tierCut = ref<ReadonlySet<number>>(new Set());
 const placeCut = ref<ReadonlySet<string>>(new Set());
 const handCut = ref<string | null>(null);
+/** THE FOOTING — which column the hoard is ordered on, and the direction.
+ * "where" is the default: a ledger reads by location first. */
+const sortKey = ref<SortKey>("where");
+const sortDir = ref<"asc" | "desc">("asc"); // SortKey type declared below with the comparator
 const panel = ref<PanelName>("hoard");
 const chosenHand = ref<string | null>(null);
 /** Row keys that arrived or changed on the last turn — the wet ink set. */
@@ -66,6 +70,47 @@ const docketCut = computed(
   () => tierCut.value.size > 0 || placeCut.value.size > 0 || handCut.value !== null,
 );
 
+type SortKey = "item" | "rarity" | "count" | "where";
+
+/** The composed display name (affixes and all), lowered — what the eye reads,
+ * never the raw record path. */
+function sortLabel(h: LedgerHit): string {
+  const base = h.name ?? h.recordPath;
+  return [h.prefix, base, h.suffix].filter(Boolean).join(" ").toLowerCase();
+}
+
+/** The primary comparison for one column — the record-path tie-break is the
+ * caller's, applied after direction so the order stays stable either way. */
+function primaryCompare(a: LedgerHit, b: LedgerHit, key: SortKey): number {
+  switch (key) {
+    case "item":
+      return sortLabel(a).localeCompare(sortLabel(b));
+    case "rarity":
+      return a.tier - b.tier;
+    case "count":
+      return a.stack - b.stack;
+    case "where":
+      return a.location.localeCompare(b.location);
+  }
+}
+
+/** THE FOOTING applied: the cut view, ordered on the chosen column. A stable
+ * order — ties fall back to the record path so the same hoard always lays out
+ * the same way. */
+const sortedHits = computed<LedgerHit[]>(() => {
+  const rows = [...filteredHits.value];
+  const dir = sortDir.value === "asc" ? 1 : -1;
+  const key = sortKey.value;
+  rows.sort((a, b) => {
+    // Direction applies to the PRIMARY key only; the record-path tie-break
+    // stays ascending so the order is stable whichever way the column points.
+    const d = primaryCompare(a, b, key);
+    if (d !== 0) return d * dir;
+    return a.recordPath.localeCompare(b.recordPath);
+  });
+  return rows;
+});
+
 function toggleTier(tier: number): void {
   const next = new Set(tierCut.value);
   if (next.has(tier)) next.delete(tier);
@@ -82,6 +127,17 @@ function togglePlace(place: string): void {
 
 function cutHand(hand: string | null): void {
   handCut.value = hand;
+}
+
+function sortBy(key: "item" | "rarity" | "count" | "where"): void {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
+  } else {
+    sortKey.value = key;
+    // Sensible first direction per column: text ascends A→Z, figures and
+    // rarity descend (most/rarest first is what a hoarder wants to see).
+    sortDir.value = key === "item" || key === "where" ? "asc" : "desc";
+  }
 }
 
 function liftCuts(): void {
@@ -197,6 +253,10 @@ export function useLedger() {
     query,
     hits,
     filteredHits,
+    sortedHits,
+    sortKey,
+    sortDir,
+    sortBy,
     tierCut,
     placeCut,
     handCut,
