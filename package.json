@@ -27,7 +27,7 @@
     "@tauri-apps/cli": "^2",
     "@unocss/preset-attributify": "^66.7.0",
     "@unocss/preset-icons": "^66.7.0",
-    "@vitejs/plugin-vue": "^5.2.1",
+    "@vitejs/plugin-vue": "^6.0.8",
     "@vue/test-utils": "^2.4.6",
     "happy-dom": "^15.11.7",
     "oxfmt": "^0.61.0",
@@ -35,8 +35,8 @@
     "oxlint-tsgolint": "^7.0.2001",
     "typescript": "~5.6.2",
     "unocss": "^66.7.0",
-    "vite": "^6.0.3",
-    "vitest": "^2.1.9",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10",
     "vue-tsc": "^2.1.10"
   }
 }
