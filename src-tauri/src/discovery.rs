@@ -58,7 +58,7 @@ pub fn discover_roots(
         }
     }
     let mut scored: Vec<CandidateRoot> = candidates.iter().filter_map(|c| score_root(c)).collect();
-    scored.sort_by(|a, b| b.freshest.cmp(&a.freshest));
+    scored.sort_by_key(|b| std::cmp::Reverse(b.freshest));
     scored
 }
 

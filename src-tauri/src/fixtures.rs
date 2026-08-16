@@ -200,7 +200,7 @@ pub fn forge_transfer_v11() -> Vec<u8> {
 /// and personal-stash blocks report version 11 — the per-block gating trap
 /// (delta #1) as a committed fixture.
 pub fn forge_player_v8_inv11(name: &str, level: u32) -> Vec<u8> {
-    let mut s = Scribe::new(0x0DDB_A11 ^ level);
+    let mut s = Scribe::new(0x00DD_BA11 ^ level);
     s.write_u32(0x5843_4447); // "GDCX"
     s.write_u32(2); // header version
     s.write_wstr(name);
