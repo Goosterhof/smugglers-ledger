@@ -27,7 +27,7 @@ describe("THE SHIPMENT", () => {
     wrapper = mount(ShipmentPrompt);
     await useShipment().checkShipment();
     await nextTick();
-    expect(wrapper.find("[data-testid='shipment-strip']").exists()).toBe(false);
+    expect(wrapper.find("[data-testid='shipment-popup']").exists()).toBe(false);
   });
 
   it("should offer TAKE DELIVERY and STAND PAT when an edition clears the border", async () => {
@@ -35,12 +35,13 @@ describe("THE SHIPMENT", () => {
     wrapper = mount(ShipmentPrompt);
     await useShipment().checkShipment();
     await nextTick();
-    const strip = wrapper.get("[data-testid='shipment-strip']");
-    expect(strip.text()).toContain("cleared the border — v0.4.0");
+    const strip = wrapper.get("[data-testid='shipment-popup']");
+    expect(strip.text()).toContain("cleared the border");
+    expect(strip.text()).toContain("Version 0.4.0");
     expect(wrapper.find("[data-testid='take-delivery']").exists()).toBe(true);
     await wrapper.get("[data-testid='stand-pat']").trigger("click");
     await nextTick();
-    expect(wrapper.find("[data-testid='shipment-strip']").exists()).toBe(false);
+    expect(wrapper.find("[data-testid='shipment-popup']").exists()).toBe(false);
   });
 
   it("should REFUSE a shipment whose seal does not verify — voiced, nothing installed", async () => {
@@ -55,7 +56,7 @@ describe("THE SHIPMENT", () => {
     await shipment.takeDelivery();
     await nextTick();
     expect(shipment.status.value).toBe("refused");
-    expect(wrapper.get("[data-testid='refused']").text()).toContain("does not verify");
+    expect(wrapper.get("[data-testid='shipment-popup']").text()).toContain("does not verify");
     expect(wrapper.get("[data-testid='refused']").text()).toContain("nothing was installed");
   });
 
@@ -64,6 +65,6 @@ describe("THE SHIPMENT", () => {
     wrapper = mount(ShipmentPrompt);
     await useShipment().checkShipment();
     await nextTick();
-    expect(wrapper.find("[data-testid='shipment-strip']").exists()).toBe(false);
+    expect(wrapper.find("[data-testid='shipment-popup']").exists()).toBe(false);
   });
 });
