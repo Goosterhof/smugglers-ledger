@@ -150,7 +150,12 @@ pub fn distinct_records(hoard: &Hoard) -> HashSet<String> {
         if !item.base_name.is_empty() {
             records.insert(item.base_name.clone());
         }
-        for affix in [&item.prefix_name, &item.suffix_name] {
+        for affix in [
+            &item.prefix_name,
+            &item.suffix_name,
+            &item.component_name,
+            &item.augment_name,
+        ] {
             if !affix.is_empty() {
                 records.insert(affix.clone());
             }
@@ -204,6 +209,9 @@ pub struct NamedContraband {
     pub suffix: Option<String>,
     pub tier: u8,
     pub slot_class: Option<String>,
+    pub component: Option<String>,
+    pub augment: Option<String>,
+    pub seed: u32,
     pub stack: u32,
     pub x: u32,
     pub y: u32,
@@ -249,8 +257,20 @@ pub struct WarehouseSheet {
 pub struct LedgerHit {
     pub name: Option<String>,
     pub record_path: String,
+    pub prefix: Option<String>,
+    pub suffix: Option<String>,
     pub tier: u8,
+    pub slot_class: Option<String>,
+    pub component: Option<String>,
+    pub augment: Option<String>,
+    pub seed: u32,
     pub stack: u32,
+    /// The owner in the location's own casing — a character name, or
+    /// "SHARED STASH" for the warehouse.
+    pub hand: String,
+    /// The container class, structured for the docket's filters:
+    /// "EQUIPPED" | "BAGS" | "WEAPON SET" | "PERSONAL STASH" | "SHARED STASH".
+    pub place: String,
     pub location: String,
 }
 
@@ -273,6 +293,9 @@ fn name_item(hoard: &Hoard, item: &Contraband, x: u32, y: u32) -> NamedContraban
         suffix: affix_name(&item.suffix_name),
         tier: resolved.map(|r| r.tier).unwrap_or(0),
         slot_class: resolved.and_then(|r| r.slot_class.clone()),
+        component: affix_name(&item.component_name),
+        augment: affix_name(&item.augment_name),
+        seed: item.seed,
         stack: item.stack_count.max(1),
         x,
         y,
@@ -381,15 +404,31 @@ pub fn search_hoard(hoard: &Hoard, query: &str) -> Vec<LedgerHit> {
                 .suffix
                 .as_deref()
                 .is_some_and(|s| s.to_lowercase().contains(&needle))
+            || named
+                .component
+                .as_deref()
+                .is_some_and(|c| c.to_lowercase().contains(&needle))
+            || named
+                .augment
+                .as_deref()
+                .is_some_and(|a| a.to_lowercase().contains(&needle))
     };
-    let mut push = |named: NamedContraband, location: String| {
+    let mut push = |named: NamedContraband, hand: &str, place: &str, location: String| {
         debug_assert!(!location.is_empty(), "the location contract is absolute");
         if matches(&named) {
             hits.push(LedgerHit {
                 name: named.name,
                 record_path: named.record_path,
+                prefix: named.prefix,
+                suffix: named.suffix,
                 tier: named.tier,
+                slot_class: named.slot_class,
+                component: named.component,
+                augment: named.augment,
+                seed: named.seed,
                 stack: named.stack,
+                hand: hand.to_string(),
+                place: place.to_string(),
                 location,
             });
         }
@@ -402,6 +441,8 @@ pub fn search_hoard(hoard: &Hoard, query: &str) -> Vec<LedgerHit> {
             for placed in sack {
                 push(
                     name_placed(hoard, placed),
+                    &owner,
+                    "BAGS",
                     format!(
                         "{owner} — BAGS, BAG {}, CELL {},{}",
                         b + 1,
@@ -415,6 +456,8 @@ pub fn search_hoard(hoard: &Hoard, query: &str) -> Vec<LedgerHit> {
             if !slot.item.base_name.is_empty() {
                 push(
                     name_item(hoard, &slot.item, 0, 0),
+                    &owner,
+                    "EQUIPPED",
                     format!("{owner} — EQUIPPED, {}", EQUIPMENT_SLOT_NAMES[i]),
                 );
             }
@@ -427,6 +470,8 @@ pub fn search_hoard(hoard: &Hoard, query: &str) -> Vec<LedgerHit> {
                 if !slot.item.base_name.is_empty() {
                     push(
                         name_item(hoard, &slot.item, 0, 0),
+                        &owner,
+                        "WEAPON SET",
                         format!(
                             "{owner} — WEAPON SET {set_name}, {}",
                             if i == 0 { "MAIN HAND" } else { "OFF HAND" }
@@ -439,6 +484,8 @@ pub fn search_hoard(hoard: &Hoard, query: &str) -> Vec<LedgerHit> {
             for placed in &tab.items {
                 push(
                     name_placed(hoard, placed),
+                    &owner,
+                    "PERSONAL STASH",
                     format!(
                         "{owner} — PERSONAL STASH, TAB {}, CELL {},{}",
                         t + 1,
@@ -454,6 +501,8 @@ pub fn search_hoard(hoard: &Hoard, query: &str) -> Vec<LedgerHit> {
             for placed in &tab.items {
                 push(
                     name_placed(hoard, placed),
+                    "SHARED STASH",
+                    "SHARED STASH",
                     format!(
                         "SHARED STASH — TAB {}, CELL {},{}",
                         t + 1,

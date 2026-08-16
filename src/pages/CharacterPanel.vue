@@ -6,7 +6,7 @@
 // An empty slot is an empty ruled box with its slot name and nothing in it.
 import { computed } from "vue";
 import EmptyShelf from "@/components/EmptyShelf.vue";
-import RarityMark from "@/components/RarityMark.vue";
+import RarityStamp from "@/components/RarityStamp.vue";
 import { useLedger } from "@/composables/useLedger";
 import type { CharacterSheet, NamedContraband } from "@/types/ledger";
 import { EQUIPMENT_SLOT_NAMES } from "@/types/ledger";
@@ -79,7 +79,7 @@ function itemLabel(item: NamedContraband): string {
             :title="slot !== null ? itemLabel(slot) : undefined"
           >
             <template v-if="slot !== null">
-              <RarityMark :tier="slot.tier" /> {{ itemLabel(slot) }}
+              <RarityStamp :tier="slot.tier" compact /> {{ itemLabel(slot) }}
             </template>
           </span>
         </div>
@@ -97,7 +97,7 @@ function itemLabel(item: NamedContraband): string {
               class="flex-1 border border-sl-rule px-[8px] h-[26px] font-folio text-[14px] leading-[24px] text-sl-ink truncate"
             >
               <template v-if="slot !== null">
-                <RarityMark :tier="slot.tier" /> {{ itemLabel(slot) }}
+                <RarityStamp :tier="slot.tier" compact /> {{ itemLabel(slot) }}
               </template>
             </span>
           </div>
@@ -106,17 +106,17 @@ function itemLabel(item: NamedContraband): string {
 
       <!-- Bags + personal stash: the ledger rhythm resumes -->
       <div
-        class="grid grid-cols-[minmax(160px,1fr)_44px_72px_minmax(200px,1.2fr)] px-[8px] bg-sl-folio-shade border-b border-sl-rule-strong"
+        class="grid grid-cols-[minmax(160px,1fr)_112px_72px_minmax(200px,1.2fr)] px-[8px] bg-sl-folio-shade border-b border-sl-rule-strong"
       >
         <span class="sl-column-head text-sl-ink-soft">Item</span>
-        <span class="sl-column-head text-sl-ink-soft">Mark</span>
+        <span class="sl-column-head text-sl-ink-soft">Rarity</span>
         <span class="sl-column-head text-sl-ink-soft text-right pr-[12px]">Count</span>
         <span class="sl-column-head text-sl-ink">Whereabouts</span>
       </div>
       <div
         v-for="(row, i) in bagEntries"
         :key="`${row.item.recordPath}-${row.where}`"
-        class="grid grid-cols-[minmax(160px,1fr)_44px_72px_minmax(200px,1.2fr)] items-baseline border-b border-sl-rule px-[8px] h-[26px]"
+        class="grid grid-cols-[minmax(160px,1fr)_112px_72px_minmax(200px,1.2fr)] items-baseline border-b border-sl-rule px-[8px] h-[26px]"
         :class="(i + 1) % 5 === 0 ? 'bg-sl-folio-shade' : ''"
       >
         <span
@@ -127,7 +127,7 @@ function itemLabel(item: NamedContraband): string {
         <span v-else class="sl-entry-sub text-sl-ink-soft self-center truncate">{{
           row.item.recordPath
         }}</span>
-        <RarityMark :tier="row.item.tier" />
+        <RarityStamp :tier="row.item.tier" />
         <span class="sl-entry-figure text-sl-ink text-right pr-[12px]">{{ row.item.stack }}</span>
         <span class="sl-entry-where text-sl-ink truncate">{{ row.where }}</span>
       </div>

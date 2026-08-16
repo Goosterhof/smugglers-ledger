@@ -43,16 +43,16 @@ The domain speaks Cairn, not inventory-app: the Ledger **turns the cipher** on a
 
 Enumerated on the bench across the full real save set (1,196 distinct records, 10 characters + 10-tab stash). The distinct `itemClassification` values are exactly six, mapped ordinally in `codex.rs::classification_tier`:
 
-| Classification | Tier | Ink |
-|---|---|---|
-| Common | 0 | `--sl-tier-0` |
-| Magical | 1 | `--sl-tier-1` |
-| Rare | 2 | `--sl-tier-2` |
-| Epic | 3 | `--sl-tier-3` |
-| Legendary | 4 | `--sl-tier-4` |
-| Quest | 5 | `--sl-tier-5` |
+| Classification | Tier | Word ink | Game-hue chip |
+|---|---|---|---|
+| Common | 0 | `--sl-tier-0` | `--sl-loot-0` (white) |
+| Magical | 1 | `--sl-tier-1` | `--sl-loot-1` (yellow) |
+| Rare | 2 | `--sl-tier-2` | `--sl-loot-2` (green) |
+| Epic | 3 | `--sl-tier-3` | `--sl-loot-3` (blue) |
+| Legendary | 4 | `--sl-tier-4` | `--sl-loot-4` (purple) |
+| Quest | 5 | `--sl-tier-5` | `--sl-loot-5` (amber) |
 
-Unknown values render tier-0. The `RarityMark` glyph (`· ◦ ◇ ◆ ✦ ✷`) is the primary carrier; colour is reinforcement (WCAG 1.4.1).
+Unknown values render tier-0. **v0.2.0 (investor ruling 2026-08-16, "colors from the game, words instead of the marks"):** `RarityStamp` replaced the `RarityMark` glyphs — the rarity WORD is the carrier (in the contrast-safe tier ink; WCAG 1.4.1 holds because the word, not the colour, says it), and a square chip beside it wears the game's own loot hue (`--sl-loot-*`, vivid — legal as a swatch, never as text on cream). Equipment boxes use the chip-only compact form; stash-grid corner ticks wear the loot hue. The same ruling shipped THE DOCKET (click any hoard entry → in-place annotation: full affixed name, rarity·slot, fitted component/augment, seed, whereabouts, record path) and the docket's CUTS (rarity/place/hand filters over the search, client-side; foot reads "N ENTRIES … — CUT FROM M").
 
 ## Containment Protocols (the gates on disk)
 

@@ -104,6 +104,16 @@ const PREFLIGHT_CSS = `
           --sl-tier-3: #2A4E78;
           --sl-tier-4: #5A3A78;
           --sl-tier-5: #8A3A12;
+          /* -- loot chips: the game's own rarity hues, vivid, carried by a
+                stamped swatch (never by text — the tier inks above keep the
+                words WCAG-legible on cream). White/Yellow/Green/Blue/Purple
+                per the game's loot labels; Quest keeps the amber family. -- */
+          --sl-loot-0: #E9E6DE;
+          --sl-loot-1: #E3C53C;
+          --sl-loot-2: #54B65C;
+          --sl-loot-3: #5E8DE0;
+          --sl-loot-4: #A468E0;
+          --sl-loot-5: #D6923A;
           /* -- rhythm -- */
           --sl-pitch: 26px;
           --sl-margin-rule: 56px;

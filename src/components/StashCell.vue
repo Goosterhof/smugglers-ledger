@@ -30,10 +30,12 @@ const emit = defineEmits<{ readout: [item: NamedContraband | null] }>();
     @focus="emit('readout', item)"
   >
     <template v-if="item !== null">
+      <!-- The corner tick wears the game's own loot hue — the stash grid
+           reads like the game's, at a glance. -->
       <span
-        class="absolute top-0 left-0 w-[6px] h-[6px]"
+        class="absolute top-0 left-0 w-[8px] h-[8px] shadow-[inset_0_0_0_1px_rgba(36,32,26,0.3)]"
         :style="{
-          background: `var(--sl-tier-${item.tier >= 0 && item.tier <= 5 ? item.tier : 0})`,
+          background: `var(--sl-loot-${item.tier >= 0 && item.tier <= 5 ? item.tier : 0})`,
         }"
         aria-hidden="true"
       />

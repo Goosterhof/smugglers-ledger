@@ -35,6 +35,10 @@ const overview = shallowRef<LedgerOverview>({
 });
 const query = ref("");
 const hits = shallowRef<LedgerHit[]>([]);
+/** THE DOCKET's standing filters — empty sets mean "no cut on this axis". */
+const tierCut = ref<ReadonlySet<number>>(new Set());
+const placeCut = ref<ReadonlySet<string>>(new Set());
+const handCut = ref<string | null>(null);
 const panel = ref<PanelName>("hoard");
 const chosenHand = ref<string | null>(null);
 /** Row keys that arrived or changed on the last turn — the wet ink set. */
@@ -43,6 +47,48 @@ const firstTurnLanded = ref(false);
 const noHoard = ref(false);
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 let listening = false;
+
+/** THE DOCKET's view: the query's hits with the standing cuts applied. */
+const filteredHits = computed<LedgerHit[]>(() => {
+  const tiers = tierCut.value;
+  const places = placeCut.value;
+  const hand = handCut.value;
+  if (tiers.size === 0 && places.size === 0 && hand === null) return hits.value;
+  return hits.value.filter(
+    (h) =>
+      (tiers.size === 0 || tiers.has(h.tier)) &&
+      (places.size === 0 || places.has(h.place)) &&
+      (hand === null || h.hand === hand),
+  );
+});
+
+const docketCut = computed(
+  () => tierCut.value.size > 0 || placeCut.value.size > 0 || handCut.value !== null,
+);
+
+function toggleTier(tier: number): void {
+  const next = new Set(tierCut.value);
+  if (next.has(tier)) next.delete(tier);
+  else next.add(tier);
+  tierCut.value = next;
+}
+
+function togglePlace(place: string): void {
+  const next = new Set(placeCut.value);
+  if (next.has(place)) next.delete(place);
+  else next.add(place);
+  placeCut.value = next;
+}
+
+function cutHand(hand: string | null): void {
+  handCut.value = hand;
+}
+
+function liftCuts(): void {
+  tierCut.value = new Set();
+  placeCut.value = new Set();
+  handCut.value = null;
+}
 
 function rowKey(hit: LedgerHit): string {
   return `${hit.recordPath}|${hit.location}|${hit.stack}`;
@@ -113,7 +159,8 @@ export function useLedger() {
     if (noHoard.value) return "noSaves";
     if (overview.value.codexCold) return "coldCodex";
     if (overview.value.codexNote !== null) return "noInstall";
-    if (query.value.trim() !== "" && hits.value.length === 0) return "noResults";
+    if ((query.value.trim() !== "" || docketCut.value) && filteredHits.value.length === 0)
+      return "noResults";
     return null;
   });
 
@@ -149,6 +196,15 @@ export function useLedger() {
     overview,
     query,
     hits,
+    filteredHits,
+    tierCut,
+    placeCut,
+    handCut,
+    docketCut,
+    toggleTier,
+    togglePlace,
+    cutHand,
+    liftCuts,
     panel,
     chosenHand,
     wetKeys,
