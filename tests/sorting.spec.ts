@@ -17,6 +17,7 @@ function hit(over: Record<string, unknown>) {
     component: null,
     augment: null,
     seed: 0,
+    stats: [],
     stack: 1,
     hand: "SPINNY",
     place: "BAGS",

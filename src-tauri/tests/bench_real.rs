@@ -165,6 +165,23 @@ fn bench_codex_full_corpus_resolve() {
     }
     println!("equip-slot classes present: {slot_classes:?}");
 
+    // Stats — how many records resolved stat lines, and a sample.
+    let with_stats = resolved.values().filter(|r| !r.stats.is_empty()).count();
+    println!(
+        "STAT COVERAGE: {with_stats} of {} resolved records carry stat lines",
+        resolved.len()
+    );
+    let mut samples = 0;
+    for (path, r) in &resolved {
+        if r.stats.len() >= 3 && samples < 4 {
+            println!("  {path}:");
+            for line in &r.stats {
+                println!("    {} {}", line.magnitude, line.label);
+            }
+            samples += 1;
+        }
+    }
+
     // WARM: a fresh Codex over the written cache — the 2-second promise's
     // half of the measurement (parse + cached resolve).
     let warm_started = Instant::now();

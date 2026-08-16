@@ -19,7 +19,7 @@ use std::sync::Mutex;
 
 use serde::Serialize;
 
-use crate::codex::{Codex, ResolvedRecord};
+use crate::codex::{Codex, ResolvedRecord, StatLine};
 use crate::contraband::{Contraband, PlacedContraband, StashTab};
 use crate::discovery::{self, CandidateRoot};
 use crate::error::LedgerError;
@@ -212,6 +212,9 @@ pub struct NamedContraband {
     pub component: Option<String>,
     pub augment: Option<String>,
     pub seed: u32,
+    /// The item's full stat lines — base record + every affix + component +
+    /// augment, aggregated in read order.
+    pub stats: Vec<StatLine>,
     pub stack: u32,
     pub x: u32,
     pub y: u32,
@@ -264,6 +267,7 @@ pub struct LedgerHit {
     pub component: Option<String>,
     pub augment: Option<String>,
     pub seed: u32,
+    pub stats: Vec<StatLine>,
     pub stack: u32,
     /// The owner in the location's own casing — a character name, or
     /// "SHARED STASH" for the warehouse.
@@ -286,6 +290,20 @@ fn name_item(hoard: &Hoard, item: &Contraband, x: u32, y: u32) -> NamedContraban
             .and_then(|r| r.name.clone())
             .or_else(|| Some(affix.clone()))
     };
+    // The item's stats are its base record's plus every affix, component, and
+    // augment it carries — collected in the order a player reads them.
+    let mut stats: Vec<StatLine> = Vec::new();
+    for record_name in [
+        &item.base_name,
+        &item.prefix_name,
+        &item.suffix_name,
+        &item.component_name,
+        &item.augment_name,
+    ] {
+        if let Some(r) = hoard.resolved.get(record_name) {
+            stats.extend(r.stats.iter().cloned());
+        }
+    }
     NamedContraband {
         name: resolved.and_then(|r| r.name.clone()),
         record_path: item.base_name.clone(),
@@ -296,6 +314,7 @@ fn name_item(hoard: &Hoard, item: &Contraband, x: u32, y: u32) -> NamedContraban
         component: affix_name(&item.component_name),
         augment: affix_name(&item.augment_name),
         seed: item.seed,
+        stats,
         stack: item.stack_count.max(1),
         x,
         y,
@@ -426,6 +445,7 @@ pub fn search_hoard(hoard: &Hoard, query: &str) -> Vec<LedgerHit> {
                 component: named.component,
                 augment: named.augment,
                 seed: named.seed,
+                stats: named.stats,
                 stack: named.stack,
                 hand: hand.to_string(),
                 place: place.to_string(),
