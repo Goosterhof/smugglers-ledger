@@ -2,7 +2,7 @@
 // The two grounds (Design System #00012): the soot room you stand in, the
 // lit folio you read. The lamp wash is the room's single light source —
 // fractionally off the folio's centre, a light that comes from a place.
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
 import TheWings from "@/components/TheWings.vue";
 import TheMarginRail from "@/components/TheMarginRail.vue";
 import TheSpine from "@/components/TheSpine.vue";
@@ -12,8 +12,20 @@ import LedgerPanel from "@/pages/LedgerPanel.vue";
 import CharacterPanel from "@/pages/CharacterPanel.vue";
 import StashPanel from "@/pages/StashPanel.vue";
 import { useLedger } from "@/composables/useLedger";
+import ShipmentPrompt from "@/shipment/ShipmentPrompt.vue";
+import { useShipment } from "@/shipment/useShipment";
 
 const { panel, state, chosenHand, characters } = useLedger();
+
+// THE SHIPMENT's boot check — once, silent when nothing waits at the border.
+const { checkShipment } = useShipment();
+let shipmentChecked = false;
+onMounted(() => {
+  if (!shipmentChecked) {
+    shipmentChecked = true;
+    void checkShipment();
+  }
+});
 
 const sheetTitle = computed(() => {
   if (panel.value === "manifest") {
@@ -55,5 +67,6 @@ const sheetState = computed(() => {
       </LedgerSheet>
       <TheSpine />
     </div>
+    <ShipmentPrompt />
   </div>
 </template>

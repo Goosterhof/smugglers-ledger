@@ -1,6 +1,6 @@
 [package]
 name = "smugglers-ledger"
-version = "0.2.0"
+version = "0.3.0"
 description = "The Smuggler's Ledger — one searchable overview of everything you own across the whole of Cairn. Read-only, offline, zero-config."
 authors = ["Gerard Oosterhof <gerard@script.nl>"]
 edition = "2021"
@@ -18,6 +18,8 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-log = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

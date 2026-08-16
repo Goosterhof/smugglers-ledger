@@ -74,7 +74,7 @@ bash scripts/read-only-audit.sh    # RD-2
 bash scripts/legal-floor-audit.sh  # RD-3 (bundle sweep needs dist/ built)
 ```
 
-The Sentinel (`.github/workflows/sentinel.yml`) runs all of the above on every push/PR to `main`. Merge policy per Decision 025: **merge commits only**.
+The Sentinel (`.github/workflows/sentinel.yml`) runs all of the above on every push/PR to `main`; **Version Lockstep** (`.github/workflows/version-lockstep.yml`, armed 2026-08-16 with the updater) asserts the four version manifests agree on every push/PR (`npm run version:check`), plus a non-blocking release-readiness reminder on PRs. `main` is branch-protected (three Sentinel contexts required). Merge policy per Decision 025: **merge commits only**.
 
 ### The bench suite (never in CI)
 
@@ -110,6 +110,6 @@ Bench record (2026-08-16, this bench): 10/10 characters parse clean; transfer.gs
 
 ## Distribution
 
-**The Shipment** (`.github/workflows/shipment.yml`, armed 2026-08-16): push a version tag (`git tag v0.1.0 && git push origin v0.1.0`) and a Windows runner builds the Ledger and publishes the **NSIS installer** to a GitHub Release — one artifact, so a downloader never has to ask which file. The shipment is UNSIGNED (no auto-updater yet); when the updater arrives, the minisign key secrets and the manifest-unambiguity rules come with it — read the Archive's `tauri-updater.md` scars first. Version lives in `package.json` + `tauri.conf.json` + `Cargo.toml` (+ lockfiles): bump together BEFORE tagging. Shipment is not a gate — the Sentinel gates, the Shipment distributes.
+**The Shipment** (`.github/workflows/shipment.yml`, armed 2026-08-16; **SEALED since v0.3.0**): push a version tag and a Windows runner builds, minisign-SIGNS, and publishes the **NSIS installer + `latest.json`** to a GitHub Release. Installed Ledgers (v0.3.0+) check the border on boot (`src/shipment/` — `useShipment` + the ShipmentPrompt strip: TAKE DELIVERY / STAND PAT; a bad seal is REFUSED, voiced, never retried) and relaunch into the new edition after a verified download. Wiring per the Archive's `tauri-updater.md` scars: passwordless key + EMPTY password secret, `--bundles nsis` for an unambiguous manifest, `createUpdaterArtifacts: true`, committed `Cargo.lock`. **Key custody: `~/.smugglers-ledger-updater.key` on the investor's bench — escrow it; it is unrecoverable.** Version bumps go through `npm run version:bump <v>` (rewrites all four manifests incl. the lockfile pair; the Lockstep gate enforces agreement) — and per the merged≠released scar, bump + tag IS part of shipping any behavior fix. Shipment is not a gate — the Sentinel gates, the Shipment distributes.
 
 Local fallback: `npm run tauri build` on a Windows host produces `.msi`/`.nsis` installers directly (window 1180×780 / min 960×640 per wireframe #00038).

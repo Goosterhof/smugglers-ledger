@@ -104,6 +104,12 @@ pub fn run() {
         )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // THE SHIPMENT's second half — the updater checks GitHub Releases for
+        // a newer edition and verifies the minisign seal before install;
+        // process drives the relaunch. The flow lives frontend-side in
+        // src/shipment/; these are bare registration.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(LedgerState::default())
         .manage(WatchState::default())
         .setup(|app| {
