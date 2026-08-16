@@ -75,6 +75,10 @@ pub struct ResolvedRecord {
     /// An item aggregates base + affix + component stats (ledger.rs).
     #[serde(default)]
     pub stats: Vec<StatLine>,
+    /// The base record's `bitmap` — the `.tex` path inside Items.arc the icon
+    /// is decoded from. Only base items carry one (affixes have no icon).
+    #[serde(default)]
+    pub bitmap: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -356,6 +360,7 @@ struct RecordEssentials {
     classification: Option<String>,
     class: Option<String>,
     loot_randomizer_name: Option<String>,
+    bitmap: Option<String>,
     /// Raw (property, value) stat fields captured from the record's t1 floats.
     stat_fields: Vec<(String, f32)>,
 }
@@ -368,6 +373,7 @@ impl RecordEssentials {
             "itemClassification" => Some(&mut self.classification),
             "Class" => Some(&mut self.class),
             "lootRandomizerName" => Some(&mut self.loot_randomizer_name),
+            "bitmap" => Some(&mut self.bitmap),
             _ => None,
         }
     }
@@ -675,6 +681,7 @@ impl Codex {
                         resolved.classification = essentials.classification;
                         resolved.slot_class = essentials.class;
                         resolved.stats = format_stats(&essentials.stat_fields);
+                        resolved.bitmap = essentials.bitmap;
                         break;
                     }
                 }

@@ -1,6 +1,6 @@
 [package]
 name = "smugglers-ledger"
-version = "0.7.0"
+version = "0.8.0"
 description = "The Smuggler's Ledger — one searchable overview of everything you own across the whole of Cairn. Read-only, offline, zero-config."
 authors = ["Gerard Oosterhof <gerard@script.nl>"]
 edition = "2021"
@@ -35,6 +35,9 @@ sha2 = "0.10"
 notify = "8"
 # Documents/ and app-data paths for discovery and the codex cache.
 dirs = "6"
+image = { version = "0.25", default-features = false, features = ["png"] }
+image_dds = { version = "0.7", default-features = false, features = ["ddsfile", "image"] }
+base64 = "0.22"
 
 [target.'cfg(windows)'.dependencies]
 # Steam names its own install root in the registry; discovery reads it, never guesses.
