@@ -100,6 +100,20 @@ const rarityWord = computed(() => RARITY_NAMES[hit.tier >= 0 && hit.tier <= 5 ? 
       data-testid="docket"
     >
       <p class="font-folio text-[15px] leading-[26px] text-sl-ink">{{ fullName }}</p>
+
+      <!-- THE STAT BLOCK — the item's rolled properties, two-tone: ember
+           magnitude, ash label. Aggregated base + affixes + component. -->
+      <div
+        v-if="hit.stats.length > 0"
+        class="border-l border-sl-rule-strong pl-[12px] my-[6px]"
+        data-testid="stat-block"
+      >
+        <p v-for="(stat, s) in hit.stats" :key="s" class="sl-entry-sub leading-[20px]">
+          <span class="text-sl-ember tabular-nums">{{ stat.magnitude }}</span>
+          <span class="text-sl-ink"> {{ stat.label }}</span>
+        </p>
+      </div>
+
       <div class="grid grid-cols-[96px_1fr] gap-x-[12px]">
         <span class="sl-column-head text-sl-ink-soft leading-[26px]">Rarity</span>
         <span class="sl-entry-sub text-sl-ink leading-[26px]"

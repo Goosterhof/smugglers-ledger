@@ -15,9 +15,17 @@ export interface NamedContraband {
   component: string | null;
   augment: string | null;
   seed: number;
+  /** Aggregated stat lines (base + affixes + component + augment). */
+  stats: StatLine[];
   stack: number;
   x: number;
   y: number;
+}
+
+/** One readable stat line, two-tone: ember magnitude, ash label. */
+export interface StatLine {
+  magnitude: string;
+  label: string;
 }
 
 /** The six rarity words, in tier order — the game's own ladder. */
@@ -70,6 +78,7 @@ export interface LedgerHit {
   component: string | null;
   augment: string | null;
   seed: number;
+  stats: StatLine[];
   stack: number;
   /** The owner — a character name in caps, or "SHARED STASH". */
   hand: string;

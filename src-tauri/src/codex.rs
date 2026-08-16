@@ -47,6 +47,15 @@ const CACHE_FILE: &str = "codex-cache.json";
 /// Identity sampling width: leading + trailing bytes of each database file.
 const IDENTITY_SAMPLE: usize = 64 * 1024;
 
+/// One readable stat line, split two-tone for the docket (ember magnitude,
+/// ash label): `+18%` · `Fire Damage`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatLine {
+    pub magnitude: String,
+    pub label: String,
+}
+
 /// One resolved record: what the UI needs and nothing else.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -62,6 +71,10 @@ pub struct ResolvedRecord {
     /// The record's `Class` field — the equip-slot class the 4A slot filter
     /// reads (`ArmorProtective_Head`, `WeaponMelee_Axe`, …).
     pub slot_class: Option<String>,
+    /// The record's own stat lines, formatted from its numeric properties.
+    /// An item aggregates base + affix + component stats (ledger.rs).
+    #[serde(default)]
+    pub stats: Vec<StatLine>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -316,6 +329,17 @@ impl ArzShelf {
                         }
                     }
                 }
+            } else if field_type == 1 && count == 1 {
+                // t1 = a float-as-bits scalar (the stat magnitudes). Capture the
+                // value-bearing, non-zero stat properties; the formatter turns
+                // them into readable lines. XOR/Global flags stay 0 and are
+                // dropped by the non-zero filter and the formatter's allowlist.
+                if let Some(field_name) = self.strings.get(name_idx) {
+                    let value = f32::from_bits(le_u32(&body, pos)?);
+                    if value != 0.0 && is_stat_property(field_name) {
+                        essentials.stat_fields.push((field_name.clone(), value));
+                    }
+                }
             }
             pos = values_end;
         }
@@ -332,6 +356,8 @@ struct RecordEssentials {
     classification: Option<String>,
     class: Option<String>,
     loot_randomizer_name: Option<String>,
+    /// Raw (property, value) stat fields captured from the record's t1 floats.
+    stat_fields: Vec<(String, f32)>,
 }
 
 impl RecordEssentials {
@@ -345,6 +371,209 @@ impl RecordEssentials {
             _ => None,
         }
     }
+}
+
+/// The value-bearing stat families. Global/XOR are mechanical flags (always 0),
+/// Tag fields are string refs — none carry a magnitude the player reads.
+fn is_stat_property(name: &str) -> bool {
+    (name.starts_with("offensive")
+        || name.starts_with("defensive")
+        || name.starts_with("character")
+        || name.starts_with("retaliation"))
+        && !name.ends_with("Global")
+        && !name.ends_with("XOR")
+        && !name.ends_with("Tag")
+}
+
+/// The elements, in the game's own read order, with their display names
+/// (Grim Dawn's internal `Poison` shows as "Acid", `Life` as "Vitality").
+const STAT_ELEMENTS: &[(&str, &str)] = &[
+    ("Physical", "Physical"),
+    ("Pierce", "Pierce"),
+    ("Fire", "Fire"),
+    ("Cold", "Cold"),
+    ("Lightning", "Lightning"),
+    ("Elemental", "Elemental"),
+    ("Aether", "Aether"),
+    ("Chaos", "Chaos"),
+    ("Vitality", "Vitality"),
+    ("Poison", "Acid"),
+    ("Bleeding", "Bleeding"),
+    ("Life", "Vitality"),
+];
+
+/// Character attributes/abilities/speeds → (display label, is-percent).
+const STAT_CHARACTER: &[(&str, &str, bool)] = &[
+    ("characterStrength", "Physique", false),
+    ("characterStrengthModifier", "Physique", true),
+    ("characterDexterity", "Cunning", false),
+    ("characterDexterityModifier", "Cunning", true),
+    ("characterIntelligence", "Spirit", false),
+    ("characterIntelligenceModifier", "Spirit", true),
+    ("characterLife", "Health", false),
+    ("characterLifeModifier", "Health", true),
+    ("characterMana", "Energy", false),
+    ("characterManaModifier", "Energy", true),
+    ("characterLifeRegen", "Health Regen", false),
+    ("characterManaRegen", "Energy Regen", false),
+    ("characterOffensiveAbility", "Offensive Ability", false),
+    (
+        "characterOffensiveAbilityModifier",
+        "Offensive Ability",
+        true,
+    ),
+    ("characterDefensiveAbility", "Defensive Ability", false),
+    (
+        "characterDefensiveAbilityModifier",
+        "Defensive Ability",
+        true,
+    ),
+    ("characterAttackSpeedModifier", "Attack Speed", true),
+    ("characterSpellCastSpeedModifier", "Casting Speed", true),
+    ("characterRunSpeedModifier", "Movement Speed", true),
+    ("characterTotalSpeedModifier", "Total Speed", true),
+    ("characterArmorModifier", "Armor", true),
+    ("characterDodgePercent", "Chance to Dodge Attacks", true),
+    (
+        "characterDeflectProjectile",
+        "Chance to Avoid Projectiles",
+        true,
+    ),
+];
+
+fn num(v: f32) -> String {
+    if (v.fract()).abs() < 0.05 {
+        format!("{}", v.round() as i64)
+    } else {
+        format!("{v:.1}")
+    }
+}
+
+/// Strip the family prefix and split camelCase into words — the honest
+/// fallback for a property the map doesn't name, so a stat is never dropped.
+fn humanize_property(key: &str) -> String {
+    let stripped = key
+        .strip_prefix("offensive")
+        .or_else(|| key.strip_prefix("defensive"))
+        .or_else(|| key.strip_prefix("character"))
+        .or_else(|| key.strip_prefix("retaliation"))
+        .unwrap_or(key);
+    let mut words = String::new();
+    for (i, c) in stripped.char_indices() {
+        if c.is_uppercase() && i != 0 {
+            words.push(' ');
+        }
+        words.push(c);
+    }
+    words.trim().to_string()
+}
+
+/// Turn a record's raw (property, value) stat fields into readable two-tone
+/// lines. Damage ranges (Min/Max), percent modifiers, resistances, and the
+/// character attributes are mapped by name; anything unmapped is humanized so
+/// it still shows (a labelled unknown beats a silent gap).
+pub fn format_stats(fields: &[(String, f32)]) -> Vec<StatLine> {
+    let map: std::collections::HashMap<&str, f32> =
+        fields.iter().map(|(k, v)| (k.as_str(), *v)).collect();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut out: Vec<StatLine> = Vec::new();
+
+    // Offensive damage — a flat/range line and a percent line per element.
+    for (tok, disp) in STAT_ELEMENTS {
+        let (min_k, max_k, mod_k, flat_k) = (
+            format!("offensive{tok}Min"),
+            format!("offensive{tok}Max"),
+            format!("offensive{tok}Modifier"),
+            format!("offensive{tok}"),
+        );
+        if let (Some(&mn), Some(&mx)) = (map.get(min_k.as_str()), map.get(max_k.as_str())) {
+            let mag = if (mn - mx).abs() < 0.05 {
+                format!("+{}", num(mn))
+            } else {
+                format!("+{}-{}", num(mn), num(mx))
+            };
+            out.push(StatLine {
+                magnitude: mag,
+                label: format!("{disp} Damage"),
+            });
+            seen.insert(min_k);
+            seen.insert(max_k);
+        } else if let Some(&v) = map.get(flat_k.as_str()) {
+            out.push(StatLine {
+                magnitude: format!("+{}", num(v)),
+                label: format!("{disp} Damage"),
+            });
+            seen.insert(flat_k.clone());
+        }
+        if let Some(&v) = map.get(mod_k.as_str()) {
+            out.push(StatLine {
+                magnitude: format!("+{}%", num(v)),
+                label: format!("{disp} Damage"),
+            });
+            seen.insert(mod_k);
+        }
+    }
+
+    // Resistances — defensive{Elem} (+ the explicit ElementalResistance form).
+    for (tok, disp) in STAT_ELEMENTS {
+        for key in [
+            format!("defensive{tok}"),
+            format!("defensive{tok}Resistance"),
+        ] {
+            if seen.contains(&key) {
+                continue;
+            }
+            if let Some(&v) = map.get(key.as_str()) {
+                out.push(StatLine {
+                    magnitude: format!("+{}%", num(v)),
+                    label: format!("{disp} Resistance"),
+                });
+                seen.insert(key);
+            }
+        }
+    }
+    if let Some(&v) = map.get("defensiveProtection") {
+        out.push(StatLine {
+            magnitude: format!("+{}", num(v)),
+            label: "Armor".into(),
+        });
+        seen.insert("defensiveProtection".into());
+    }
+
+    // Character attributes, abilities, speeds.
+    for (field, label, pct) in STAT_CHARACTER {
+        if let Some(&v) = map.get(field) {
+            out.push(StatLine {
+                magnitude: if *pct {
+                    format!("+{}%", num(v))
+                } else {
+                    format!("+{}", num(v))
+                },
+                label: (*label).to_string(),
+            });
+            seen.insert((*field).to_string());
+        }
+    }
+
+    // Everything else that survived the filter — humanized, never dropped.
+    for (key, val) in fields {
+        if seen.contains(key) {
+            continue;
+        }
+        let pct = key.ends_with("Modifier")
+            || key.ends_with("Percent")
+            || key.contains("Resist")
+            || key.ends_with("Chance");
+        out.push(StatLine {
+            magnitude: if pct {
+                format!("+{}%", num(*val))
+            } else {
+                format!("+{}", num(*val))
+            },
+            label: humanize_property(key),
+        });
+    }
+    out
 }
 
 /// Classification string → ordinal ink tier, per the bench enumeration of
@@ -445,6 +674,7 @@ impl Codex {
                         resolved.tier = classification_tier(essentials.classification.as_deref());
                         resolved.classification = essentials.classification;
                         resolved.slot_class = essentials.class;
+                        resolved.stats = format_stats(&essentials.stat_fields);
                         break;
                     }
                 }
@@ -515,6 +745,31 @@ impl Codex {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn it_should_format_the_common_stat_families_into_readable_lines() {
+        let fields = vec![
+            ("offensiveFireMin".to_string(), 4.0),
+            ("offensiveFireMax".to_string(), 6.0),
+            ("offensiveFireModifier".to_string(), 25.0),
+            ("defensiveLightning".to_string(), 28.0),
+            ("characterDexterity".to_string(), 47.0),
+            ("characterAttackSpeedModifier".to_string(), 5.0),
+            ("someUnmappedThing".to_string(), 3.0),
+        ];
+        let lines = format_stats(&fields);
+        let rendered: Vec<String> = lines
+            .iter()
+            .map(|l| format!("{} {}", l.magnitude, l.label))
+            .collect();
+        assert!(rendered.contains(&"+4-6 Fire Damage".to_string()));
+        assert!(rendered.contains(&"+25% Fire Damage".to_string()));
+        assert!(rendered.contains(&"+28% Lightning Resistance".to_string()));
+        assert!(rendered.contains(&"+47 Cunning".to_string()));
+        assert!(rendered.contains(&"+5% Attack Speed".to_string()));
+        // Nothing is dropped — the unmapped property is humanized, not lost.
+        assert!(rendered.iter().any(|r| r.contains("some Unmapped Thing")));
+    }
 
     #[test]
     fn it_should_refuse_to_open_any_path_outside_its_own_shelves() {

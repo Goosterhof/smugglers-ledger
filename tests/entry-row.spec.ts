@@ -23,6 +23,7 @@ const NAMED = {
   component: null,
   augment: null,
   seed: 277104776,
+  stats: [],
   stack: 12,
   hand: "SPINNY",
   place: "BAGS",
@@ -80,6 +81,26 @@ describe("EntryRow", () => {
     expect(docket.text()).toContain("records/items/materia/compa_ectoplasm.dbr");
     await wrapper.get("[data-testid='entry-row']").trigger("click");
     expect(wrapper.find("[data-testid='docket']").exists()).toBe(false);
+  });
+
+  it("should render the two-tone stat block in the docket when stats are present", async () => {
+    wrapper = mount(EntryRow, {
+      props: {
+        hit: {
+          ...NAMED,
+          stats: [
+            { magnitude: "+20%", label: "Lightning Damage" },
+            { magnitude: "+35", label: "Armor" },
+          ],
+        },
+      },
+    });
+    await wrapper.get("[data-testid='entry-row']").trigger("click");
+    const block = wrapper.get("[data-testid='stat-block']");
+    expect(block.text()).toContain("+20%");
+    expect(block.text()).toContain("Lightning Damage");
+    expect(block.text()).toContain("+35");
+    expect(block.text()).toContain("Armor");
   });
 
   it("should strike a flagged entry in wax without deleting it", () => {
