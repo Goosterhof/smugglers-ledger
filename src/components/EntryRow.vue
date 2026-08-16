@@ -96,7 +96,7 @@ const rarityWord = computed(() => RARITY_NAMES[hit.tier >= 0 && hit.tier <= 5 ? 
     <!-- THE DOCKET — the unfolded annotation, indented off the margin rule -->
     <div
       v-if="open"
-      class="border-b border-sl-rule bg-sl-folio-shade pl-[32px] pr-[8px] py-[13px] shadow-[inset_2px_0_0_0_var(--sl-rule-strong)]"
+      class="border-b border-sl-rule bg-sl-folio-shade pl-[32px] pr-[8px] py-[13px] shadow-[inset_2px_0_0_0_var(--sl-lamp)]"
       data-testid="docket"
     >
       <p class="font-folio text-[15px] leading-[26px] text-sl-ink">{{ fullName }}</p>
