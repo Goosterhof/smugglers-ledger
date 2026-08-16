@@ -24,6 +24,7 @@ const NAMED = {
   augment: null,
   seed: 277104776,
   stats: [],
+  bitmap: null,
   stack: 12,
   hand: "SPINNY",
   place: "BAGS",

@@ -10,7 +10,8 @@
 // full composed name, rarity word, slot, fitted component and augment, seed,
 // whereabouts, and the record path. No drawer, no modal — a ledger annotates
 // in place.
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
+import { invoke } from "@tauri-apps/api/core";
 import type { LedgerHit } from "@/types/ledger";
 import { RARITY_NAMES } from "@/types/ledger";
 import RarityStamp from "@/components/RarityStamp.vue";
@@ -46,6 +47,20 @@ const slotWord = computed(() => {
 });
 
 const rarityWord = computed(() => RARITY_NAMES[hit.tier >= 0 && hit.tier <= 5 ? hit.tier : 0]);
+
+// THE ICON — the item's own picture, decoded on demand from the game's
+// Items.arc when the docket opens (one icon per click; no cost until asked).
+const iconUrl = ref<string | null>(null);
+let iconAsked = false;
+watch(open, async (isOpen) => {
+  if (!isOpen || iconAsked || hit.bitmap === null) return;
+  iconAsked = true;
+  try {
+    iconUrl.value = await invoke<string | null>("item_icon", { bitmap: hit.bitmap });
+  } catch {
+    iconUrl.value = null;
+  }
+});
 </script>
 
 <template>
@@ -99,7 +114,17 @@ const rarityWord = computed(() => RARITY_NAMES[hit.tier >= 0 && hit.tier <= 5 ? 
       class="border-b border-sl-rule bg-sl-folio-shade pl-[32px] pr-[8px] py-[13px] shadow-[inset_2px_0_0_0_var(--sl-lamp)]"
       data-testid="docket"
     >
-      <p class="font-folio text-[15px] leading-[26px] text-sl-ink">{{ fullName }}</p>
+      <div class="flex items-start gap-[12px]">
+        <!-- THE ICON — the item's own picture, on its own dark plinth -->
+        <img
+          v-if="iconUrl !== null"
+          :src="iconUrl"
+          :alt="fullName"
+          class="w-[48px] h-[48px] shrink-0 object-contain border border-sl-rule-strong bg-sl-cellar"
+          data-testid="item-icon"
+        />
+        <p class="font-folio text-[15px] leading-[26px] text-sl-ink">{{ fullName }}</p>
+      </div>
 
       <!-- THE STAT BLOCK — the item's rolled properties, two-tone: ember
            magnitude, ash label. Aggregated base + affixes + component. -->

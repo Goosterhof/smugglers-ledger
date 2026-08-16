@@ -237,3 +237,25 @@ fn bench_search_the_real_hoard_for_ectoplasm() {
         "the investor's stash is known to hold ectoplasm"
     );
 }
+
+/// [BENCH] Icons — extract and decode a real item bitmap from Items.arc.
+#[test]
+#[ignore = "bench only — needs the real install"]
+fn bench_decode_a_real_icon() {
+    use smugglers_ledger_lib::icons::IconShelf;
+    let install = install_root();
+    let data = std::fs::read(install.join("resources/Items.arc")).expect("read Items.arc");
+    let shelf = IconShelf::open(data).expect("open Items.arc");
+    // A known base medal bitmap (from the record dump).
+    let bitmap = "chests/breakables/boozecrate01_dif.tex";
+    let png = shelf
+        .icon_png(bitmap)
+        .expect("icon_png ok")
+        .expect("bitmap present");
+    println!("decoded {bitmap}: {} PNG bytes", png.len());
+    assert_eq!(&png[1..4], b"PNG", "output is a PNG");
+    // Decode the PNG back to confirm it's a real, non-empty image.
+    let img = image::load_from_memory(&png).expect("valid PNG");
+    println!("  dimensions: {}x{}", img.width(), img.height());
+    assert!(img.width() >= 16 && img.height() >= 16, "a real icon");
+}

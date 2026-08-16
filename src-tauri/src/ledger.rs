@@ -215,6 +215,8 @@ pub struct NamedContraband {
     /// The item's full stat lines — base record + every affix + component +
     /// augment, aggregated in read order.
     pub stats: Vec<StatLine>,
+    /// The base record's icon bitmap path (`.tex` in Items.arc), if any.
+    pub bitmap: Option<String>,
     pub stack: u32,
     pub x: u32,
     pub y: u32,
@@ -268,6 +270,7 @@ pub struct LedgerHit {
     pub augment: Option<String>,
     pub seed: u32,
     pub stats: Vec<StatLine>,
+    pub bitmap: Option<String>,
     pub stack: u32,
     /// The owner in the location's own casing — a character name, or
     /// "SHARED STASH" for the warehouse.
@@ -315,6 +318,7 @@ fn name_item(hoard: &Hoard, item: &Contraband, x: u32, y: u32) -> NamedContraban
         augment: affix_name(&item.augment_name),
         seed: item.seed,
         stats,
+        bitmap: resolved.and_then(|r| r.bitmap.clone()),
         stack: item.stack_count.max(1),
         x,
         y,
@@ -446,6 +450,7 @@ pub fn search_hoard(hoard: &Hoard, query: &str) -> Vec<LedgerHit> {
                 augment: named.augment,
                 seed: named.seed,
                 stats: named.stats,
+                bitmap: named.bitmap,
                 stack: named.stack,
                 hand: hand.to_string(),
                 place: place.to_string(),
@@ -554,6 +559,8 @@ pub struct LedgerInner {
     /// True while a first-run (cold) codex resolve is walking the shelves —
     /// 4D's "the codex is reading the shelves" state.
     pub codex_cold: bool,
+    /// The resolved game-install root — where Items.arc lives, for icons.
+    pub install_root: Option<PathBuf>,
 }
 
 /// Discovery + parse + resolve, into managed state. Called at startup, on
@@ -596,7 +603,8 @@ pub fn turn_the_ledger<F: Fn()>(
 
     // Open the codex (cache check only — no shelf is read here).
     let mut codex_note = None;
-    let mut codex = match discovery::game_install_root(steam.as_deref()) {
+    let install_root = discovery::game_install_root(steam.as_deref());
+    let mut codex = match install_root.clone() {
         Some(install) => match Codex::open(&install, &codex_cache_dir()) {
             Ok(codex) => Some(codex),
             Err(err) => {
@@ -622,6 +630,7 @@ pub fn turn_the_ledger<F: Fn()>(
         inner.roots = roots.clone();
         inner.codex_note = codex_note.clone();
         inner.codex_cold = true;
+        inner.install_root = install_root.clone();
         inner.hoard = Some(assemble_hoard(&chosen));
         drop(inner);
         on_stage();
@@ -641,6 +650,7 @@ pub fn turn_the_ledger<F: Fn()>(
     inner.roots = roots;
     inner.codex_note = codex_note;
     inner.codex_cold = false;
+    inner.install_root = install_root;
     inner.hoard = Some(hoard);
     drop(inner);
     on_stage();
@@ -703,6 +713,24 @@ pub fn ledger_overview(state: tauri::State<'_, LedgerState>) -> LedgerOverview {
         codex_note: inner.codex_note.clone(),
         codex_cold: inner.codex_cold,
     }
+}
+
+/// The decoded icon for one bitmap, as a `data:` PNG URL the webview can put
+/// in an `<img>`. Resolved lazily on demand (the docket asks when it opens),
+/// decoded from the user's own Items.arc, cached in the icon cabinet.
+#[tauri::command]
+pub fn item_icon(
+    state: tauri::State<'_, LedgerState>,
+    icons: tauri::State<'_, crate::icons::IconState>,
+    bitmap: String,
+) -> Option<String> {
+    let install = state.inner.lock().ok()?.install_root.clone()?;
+    let png = icons.icon_png(&install, &bitmap)?;
+    use base64::Engine;
+    Some(format!(
+        "data:image/png;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(png)
+    ))
 }
 
 // The root switch lives in lib.rs (`switch_root`): it must re-arm the watch

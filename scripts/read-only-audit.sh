@@ -39,6 +39,7 @@ EXCLUDED=(
   src-tauri/src/cipher.rs     # pure byte transform — no filesystem I/O at all
   src-tauri/src/contraband.rs # pure parser over in-memory bytes — no filesystem I/O
   src-tauri/src/codex.rs      # writes ONLY its resolve cache to app_data_dir(); shelf_guard test asserts it never opens a save-root path
+  src-tauri/src/icons.rs      # reads Items.arc from the game install and decodes textures in memory; never writes, never opens a save-root path
   src-tauri/src/error.rs      # error types only
   src-tauri/src/fixtures.rs   # test-only Scribe: encrypts + writes FIXTURES, #[cfg(test)]-gated in lib.rs, never in the shipped binary
   src-tauri/src/lib.rs        # module wiring

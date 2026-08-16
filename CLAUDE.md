@@ -34,6 +34,7 @@ The domain speaks Cairn, not inventory-app: the Ledger **turns the cipher** on a
 | `manifest.rs` | domain | One `player.gdc`: header, info (loot-filter tail raw-consumed), bio, inventory, personal stash |
 | `warehouse.rs` | domain | One `transfer.gst`: tabs with their OWN parsed grid geometry |
 | `codex.rs` | domain | `.arz` + `Text_EN.arc` readers, tag→name resolution, **stat extraction (t1 float properties → readable two-tone lines via `format_stats`, ~50 mapped property families + humanized fallback so nothing drops — v0.7.0)**, hash-keyed per-machine cache |
+| `icons.rs` | domain | **Items.arc reader + `.tex`→DDS→PNG decoder (v0.8.0): extracts the base record's `bitmap` from the user's own Items.arc shelves (lazy, base-first), patches GD's nonstandard DDS magic, decodes any BCn via `image_dds`, caches the PNG. `IconState` managed, `item_icon` command serves a `data:` URL to the docket.** |
 | `ledger.rs` | domain | The spine: enumeration loop, aggregate managed state, `list_characters` / `list_stash` / `search_ledger` / `ledger_overview` commands, two-stage cold turn |
 | `fixtures.rs` | test-only | `#[cfg(test)]` — fixture loader + the Scribe (the cipher's inverse; the app itself never encrypts). Forge: `cargo test -- --ignored forge_fixtures` |
 

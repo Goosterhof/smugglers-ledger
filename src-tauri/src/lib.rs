@@ -14,6 +14,7 @@ pub mod discovery;
 pub mod error;
 #[cfg(test)]
 mod fixtures;
+pub mod icons;
 pub mod ledger;
 pub mod manifest;
 pub mod warehouse;
@@ -112,6 +113,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .manage(LedgerState::default())
         .manage(WatchState::default())
+        .manage(icons::IconState::default())
         .setup(|app| {
             let handle = app.handle().clone();
             // The first turn runs off the main thread: the window paints
@@ -128,6 +130,7 @@ pub fn run() {
             ledger::list_stash,
             ledger::search_ledger,
             ledger::ledger_overview,
+            ledger::item_icon,
             switch_root,
         ])
         .run(tauri::generate_context!())

@@ -17,6 +17,8 @@ export interface NamedContraband {
   seed: number;
   /** Aggregated stat lines (base + affixes + component + augment). */
   stats: StatLine[];
+  /** The base record's icon bitmap path, or null (affixes have no icon). */
+  bitmap: string | null;
   stack: number;
   x: number;
   y: number;
@@ -79,6 +81,7 @@ export interface LedgerHit {
   augment: string | null;
   seed: number;
   stats: StatLine[];
+  bitmap: string | null;
   stack: number;
   /** The owner — a character name in caps, or "SHARED STASH". */
   hand: string;
