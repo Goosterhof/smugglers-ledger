@@ -8,13 +8,29 @@ export interface NamedContraband {
   recordPath: string;
   prefix: string | null;
   suffix: string | null;
-  /** Ordinal ink tier 0–5 — carried by a stamp glyph first, colour second. */
+  /** Ordinal rarity tier 0–5 — the WORD carries it, the game-hue chip seconds it. */
   tier: number;
   slotClass: string | null;
+  /** Resolved component (e.g. "Ectoplasm") — null when the socket is empty. */
+  component: string | null;
+  augment: string | null;
+  seed: number;
   stack: number;
   x: number;
   y: number;
 }
+
+/** The six rarity words, in tier order — the game's own ladder. */
+export const RARITY_NAMES = ["Common", "Magical", "Rare", "Epic", "Legendary", "Quest"] as const;
+
+/** The docket's place filters — the structured `place` values the spine serves. */
+export const PLACE_NAMES = [
+  "EQUIPPED",
+  "BAGS",
+  "WEAPON SET",
+  "PERSONAL STASH",
+  "SHARED STASH",
+] as const;
 
 export interface NamedTab {
   /** The tab's OWN parsed grid geometry — never an assumed fixed size. */
@@ -47,8 +63,18 @@ export interface WarehouseSheet {
 export interface LedgerHit {
   name: string | null;
   recordPath: string;
+  prefix: string | null;
+  suffix: string | null;
   tier: number;
+  slotClass: string | null;
+  component: string | null;
+  augment: string | null;
+  seed: number;
   stack: number;
+  /** The owner — a character name in caps, or "SHARED STASH". */
+  hand: string;
+  /** Container class — one of PLACE_NAMES. */
+  place: string;
   /** Non-null for 100% of results — the gated contract. */
   location: string;
 }

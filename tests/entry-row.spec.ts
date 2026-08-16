@@ -16,8 +16,16 @@ afterEach(() => {
 const NAMED = {
   name: "Ectoplasm",
   recordPath: "records/items/materia/compa_ectoplasm.dbr",
+  prefix: null,
+  suffix: null,
   tier: 0,
+  slotClass: null,
+  component: null,
+  augment: null,
+  seed: 277104776,
   stack: 12,
+  hand: "SPINNY",
+  place: "BAGS",
   location: "SPINNY — BAGS, BAG 1, CELL 2,3",
 };
 
@@ -40,6 +48,38 @@ describe("EntryRow", () => {
     const row = wrapper.get("[data-testid='entry-row']");
     expect(row.attributes("data-wet")).toBe("true");
     expect(row.classes().join(" ")).toContain("h-[52px]");
+  });
+
+  it("should stamp the rarity WORD in the game's hue family", () => {
+    wrapper = mount(EntryRow, { props: { hit: { ...NAMED, tier: 4 } } });
+    const stamp = wrapper.get("[data-testid='rarity-stamp']");
+    expect(stamp.text()).toContain("Legendary");
+    expect(stamp.attributes("aria-label")).toBe("Legendary");
+  });
+
+  it("should unfold THE DOCKET on click with the entry's full account", async () => {
+    wrapper = mount(EntryRow, {
+      props: {
+        hit: {
+          ...NAMED,
+          prefix: "Thunderstruck",
+          suffix: "of Attack",
+          component: "Ectoplasm",
+          slotClass: "WeaponMelee_Sword2h",
+          tier: 2,
+        },
+      },
+    });
+    expect(wrapper.find("[data-testid='docket']").exists()).toBe(false);
+    await wrapper.get("[data-testid='entry-row']").trigger("click");
+    const docket = wrapper.get("[data-testid='docket']");
+    expect(docket.text()).toContain("Thunderstruck Ectoplasm of Attack");
+    expect(docket.text()).toContain("Rare");
+    expect(docket.text()).toContain("Sword 2h");
+    expect(docket.text()).toContain("seed 277104776");
+    expect(docket.text()).toContain("records/items/materia/compa_ectoplasm.dbr");
+    await wrapper.get("[data-testid='entry-row']").trigger("click");
+    expect(wrapper.find("[data-testid='docket']").exists()).toBe(false);
   });
 
   it("should strike a flagged entry in wax without deleting it", () => {
