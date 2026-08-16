@@ -110,4 +110,6 @@ Bench record (2026-08-16, this bench): 10/10 characters parse clean; transfer.gs
 
 ## Distribution
 
-`npm run tauri build` on a Windows host produces the `.msi`/`.nsis` installers (bundle targets in `tauri.conf.json`, window 1180×780 / min 960×640 per wireframe #00038). Hand-delivered, like the Cube.
+**The Shipment** (`.github/workflows/shipment.yml`, armed 2026-08-16): push a version tag (`git tag v0.1.0 && git push origin v0.1.0`) and a Windows runner builds the Ledger and publishes the **NSIS installer** to a GitHub Release — one artifact, so a downloader never has to ask which file. The shipment is UNSIGNED (no auto-updater yet); when the updater arrives, the minisign key secrets and the manifest-unambiguity rules come with it — read the Archive's `tauri-updater.md` scars first. Version lives in `package.json` + `tauri.conf.json` + `Cargo.toml` (+ lockfiles): bump together BEFORE tagging. Shipment is not a gate — the Sentinel gates, the Shipment distributes.
+
+Local fallback: `npm run tauri build` on a Windows host produces `.msi`/`.nsis` installers directly (window 1180×780 / min 960×640 per wireframe #00038).

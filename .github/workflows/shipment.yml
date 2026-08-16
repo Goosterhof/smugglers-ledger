@@ -1,0 +1,81 @@
+name: The Shipment — Release
+
+# The Smuggler moves goods without ceremony. Pushing a version tag (v*) wakes
+# a Windows runner, builds the Ledger, and publishes the NSIS installer to a
+# GitHub Release — so the investor's brother downloads a shipment instead of
+# receiving a hand-carried installer. Shape borrowed from the Mezzanine's
+# Ascent (gadgets/mezzanine/.github/workflows/ascent.yml), minus the updater:
+# this workflow signs nothing, because no auto-update exists yet. When the
+# updater arrives (a future log), the minisign key secrets and the
+# `--bundles nsis` manifest-unambiguity rule come with it — see the Archive's
+# tauri-updater.md for the scars before wiring that.
+#
+# Cut a shipment by tagging the version in tauri.conf.json:
+#     git tag v0.1.0 && git push origin v0.1.0
+#
+# The version lives in package.json + tauri.conf.json + Cargo.toml (+ lockfiles);
+# bump them together before tagging — a tag that disagrees with the built
+# version confuses every download that follows.
+
+on:
+    push:
+        tags:
+            - 'v*'
+
+# tauri-action creates the release and uploads assets — it needs write.
+permissions:
+    contents: write
+
+jobs:
+    shipment:
+        # Windows is the only deployment target — the Ledger reads Windows
+        # save paths and applies to a Windows desktop. Built where it runs.
+        runs-on: windows-latest
+
+        # Actions pinned to full commit SHAs, matching the Ascent's posture:
+        # this job carries no signing key (yet), but its GITHUB_TOKEN holds
+        # contents:write on the repo — a compromised mutable tag could publish
+        # a poisoned installer under the lab's name. Dependabot bumps the SHAs.
+
+        steps:
+            - name: Check out the tagged ledger
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+            - name: Set up Node
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: 24
+
+            - name: Set up the Rust toolchain
+              uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable (pinned)
+
+            # Reuse the Rust build cache between shipments — the Tauri crate
+            # graph compiles once and rests in the cache thereafter.
+            - name: Cache the Rust build
+              uses: swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+              with:
+                  workspaces: src-tauri
+
+            - name: Install frontend dependencies
+              run: npm ci
+
+            # tauri-action builds the frontend (beforeBuildCommand), compiles
+            # the Rust spine in release mode, bundles, and publishes. NSIS only:
+            # one artifact on the release page means the brother never has to
+            # ask which file to download. `bundle.targets` keeps `msi` for
+            # local `npm run tauri build`; the shipment ships one thing.
+            - name: Build and publish the shipment
+              uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  tagName: ${{ github.ref_name }}
+                  releaseName: "The Smuggler's Ledger ${{ github.ref_name }}"
+                  releaseBody: |
+                      A new shipment has cleared the border. Download the installer below,
+                      run it, and the Ledger finds your saves and your game install on its
+                      own — no configuration, no questions. Strictly read-only: the Ledger
+                      opens your saves to read them, never for anything else.
+                  releaseDraft: false
+                  prerelease: false
+                  args: --bundles nsis
