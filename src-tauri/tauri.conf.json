@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "The Smuggler's Ledger",
+  "productName": "The Smuggler’s Ledger",
   "version": "0.1.0",
   "identifier": "nl.zmuuzn.smugglers-ledger",
   "build": {
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "The Smuggler's Ledger",
+        "title": "The Smuggler’s Ledger",
         "width": 1180,
         "height": 780,
         "minWidth": 960,
@@ -37,7 +37,7 @@
     "publisher": "Zmuuzn Laboratory",
     "category": "Utility",
     "shortDescription": "One searchable overview of everything you own across the whole of Cairn.",
-    "longDescription": "The Smuggler's Ledger reads your own Grim Dawn saves — every character, every bag, every stash tab — resolves display names from your own local game install, and answers 'where is my Ectoplasm' without launching the game. Strictly read-only: the Ledger opens save files to read them and never for anything else. Zero configuration: it finds your saves and your install by itself.",
+    "longDescription": "The Smuggler’s Ledger reads your own Grim Dawn saves — every character, every bag, every stash tab — resolves display names from your own local game install, and answers ‘where is my Ectoplasm’ without launching the game. Strictly read-only: the Ledger opens save files to read them and never for anything else. Zero configuration: it finds your saves and your install by itself.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
