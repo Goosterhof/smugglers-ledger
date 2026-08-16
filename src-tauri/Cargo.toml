@@ -28,7 +28,7 @@ log = "0.4"
 
 # The codex's shelves: database.arz records are LZ4 block-compressed,
 # Text_EN.arc localization parts likewise. Pure Rust, no C toolchain.
-lz4_flex = { version = "0.11", default-features = false, features = ["safe-decode"] }
+lz4_flex = { version = "0.14", default-features = false, features = ["safe-decode"] }
 # Cache key: the install's database file identity. SHA-256 of size+mtime+head bytes.
 sha2 = "0.10"
 # The watch: save-file change events, debounced in watch.rs.
@@ -50,7 +50,7 @@ tempfile = "3"
 filetime = "0.2"
 # The codex-cache tests forge a minimal valid .arz/.arc pair, which needs the
 # compression direction the app itself never uses.
-lz4_flex = { version = "0.11", default-features = false, features = ["safe-encode", "safe-decode"] }
+lz4_flex = { version = "0.14", default-features = false, features = ["safe-encode", "safe-decode"] }
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
