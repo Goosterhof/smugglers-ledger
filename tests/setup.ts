@@ -19,3 +19,14 @@ vi.mock("@tauri-apps/api/event", () => ({
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: (...args: unknown[]) => openMock(...args),
 }));
+
+export const updaterCheckMock = vi.fn<() => Promise<unknown>>(() => Promise.resolve(null));
+export const relaunchMock = vi.fn<() => Promise<void>>(() => Promise.resolve());
+
+vi.mock("@tauri-apps/plugin-updater", () => ({
+  check: () => updaterCheckMock(),
+}));
+
+vi.mock("@tauri-apps/plugin-process", () => ({
+  relaunch: () => relaunchMock(),
+}));

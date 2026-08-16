@@ -19,6 +19,7 @@
     },
     "ignorePatterns": [
         "dist/**",
+        "scripts/**",
         "coverage/**",
         "node_modules/**",
         "src-tauri/target/**",

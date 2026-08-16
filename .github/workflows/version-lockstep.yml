@@ -1,0 +1,58 @@
+name: Version Lockstep
+
+# THE SHIPMENT's version discipline. The Smuggler’s Ledger's version lives in FOUR
+# tracked manifests — package.json, src-tauri/tauri.conf.json,
+# src-tauri/Cargo.toml, and package-lock.json (twice) — and the updater leans
+# on them agreeing: it compares the running version (baked from
+# tauri.conf.json) against the release manifest. Drift means a release that
+# re-offers itself forever, or never. This gate fails the moment they disagree,
+# so the only way to change the version is the single source:
+# `npm run version:bump <version>` (which now also rewrites package-lock.json —
+# a lockfile desync would otherwise pass this gate and then fail the release
+# job's `npm ci`; cost a hand-sync before v0.2.3, 2026-06-09).
+#
+# A second, NON-BLOCKING job (release-readiness) runs on PRs only: it warns when
+# a feat/fix touches runtime code without a version bump — the "merged ≠
+# released" trap that stranded the v0.2.2 dispatch fix. It is a reminder, not a
+# gate (lab Decision 017 / Pattern 024: new enforcement starts as warn).
+#
+# Dependency-free: scripts/*.mjs use only Node built-ins + git, so this runs on
+# a bare runner with no install step.
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+
+jobs:
+    lockstep:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check out the ledger
+              uses: actions/checkout@v7
+
+            - name: Set up Node
+              uses: actions/setup-node@v7
+              with:
+                  node-version: 24
+
+            - name: Assert the four manifests agree
+              run: node scripts/version.mjs check
+
+    release-readiness:
+        # Advisory only — never fails the PR. Warns when a user-facing code
+        # change ships no version bump, so the author decides whether a release
+        # is owed. See scripts/release-readiness.mjs for the rationale.
+        if: github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check out the ledger (full history for base..head)
+              uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
+
+            - name: Warn if a user-facing change ships no version bump
+              env:
+                  BASE_REF: ${{ github.event.pull_request.base.sha }}
+                  HEAD_REF: ${{ github.event.pull_request.head.sha }}
+              run: node scripts/release-readiness.mjs

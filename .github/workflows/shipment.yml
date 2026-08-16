@@ -1,14 +1,21 @@
 name: The Shipment — Release
 
 # The Smuggler moves goods without ceremony. Pushing a version tag (v*) wakes
-# a Windows runner, builds the Ledger, and publishes the NSIS installer to a
-# GitHub Release — so the investor's brother downloads a shipment instead of
-# receiving a hand-carried installer. Shape borrowed from the Mezzanine's
-# Ascent (gadgets/mezzanine/.github/workflows/ascent.yml), minus the updater:
-# this workflow signs nothing, because no auto-update exists yet. When the
-# updater arrives (a future log), the minisign key secrets and the
-# `--bundles nsis` manifest-unambiguity rule come with it — see the Archive's
-# tauri-updater.md for the scars before wiring that.
+# a Windows runner, builds and SIGNS the Ledger, and publishes the NSIS
+# installer plus the updater manifest (latest.json) to a GitHub Release. The
+# installed Ledger's updater reads latest.json from this release's assets,
+# verifies the bundle's minisign seal against the baked-in pubkey, and offers
+# TAKE DELIVERY on next boot. Shape borrowed from the Mezzanine's Ascent
+# (gadgets/mezzanine/.github/workflows/ascent.yml); the Archive's
+# tauri-updater.md carries the scars this wiring obeys — passwordless key
+# with an EMPTY password secret, NSIS-only for an unambiguous manifest,
+# committed Cargo.lock so the release cannot drift onto a broken dependency.
+#
+# Required secrets (the private key file lives in the investor's home at
+# ~/.smugglers-ledger-updater.key — escrow it; lose it and no future build
+# can produce an update an installed Ledger will accept):
+#   TAURI_SIGNING_PRIVATE_KEY          — the minisign private key
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD — empty string (passwordless key)
 #
 # Cut a shipment by tagging the version in tauri.conf.json:
 #     git tag v0.1.0 && git push origin v0.1.0
@@ -33,9 +40,12 @@ jobs:
         runs-on: windows-latest
 
         # Actions pinned to full commit SHAs, matching the Ascent's posture:
-        # this job carries no signing key (yet), but its GITHUB_TOKEN holds
-        # contents:write on the repo — a compromised mutable tag could publish
-        # a poisoned installer under the lab's name. Dependabot bumps the SHAs.
+        # this job holds the minisign signing private key in its env — the
+        # credential whose loss or theft is unrecoverable — so a compromised
+        # release of a mutable tag could exfiltrate it (the tj-actions attack
+        # class). SHA pins make the supplied action bytes immutable;
+        # Dependabot still bumps them. Keep the pins on any workflow that
+        # touches this secret.
 
         steps:
             - name: Check out the tagged ledger
@@ -64,18 +74,20 @@ jobs:
             # one artifact on the release page means the brother never has to
             # ask which file to download. `bundle.targets` keeps `msi` for
             # local `npm run tauri build`; the shipment ships one thing.
-            - name: Build and publish the shipment
+            - name: Build, seal, and publish the shipment
               uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+                  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
               with:
                   tagName: ${{ github.ref_name }}
                   releaseName: "The Smuggler's Ledger ${{ github.ref_name }}"
                   releaseBody: |
-                      A new shipment has cleared the border. Download the installer below,
-                      run it, and the Ledger finds your saves and your game install on its
-                      own — no configuration, no questions. Strictly read-only: the Ledger
-                      opens your saves to read them, never for anything else.
+                      A new shipment has cleared the border. An installed Ledger (v0.3.0+)
+                      offers to take delivery on its own at next boot — or download the
+                      installer below. Zero configuration, strictly read-only, seal
+                      verified at the door.
                   releaseDraft: false
                   prerelease: false
                   args: --bundles nsis
