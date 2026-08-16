@@ -10,7 +10,7 @@ The domain speaks Cairn, not inventory-app: the Ledger **turns the cipher** on a
 
 - **Experiment log:** `zmuuzn/documents/experiment-logs/00065-the-smugglers-ledger.md`
 - **Format record (canonical):** `zmuuzn/.claude/memory/grim-dawn-save-format.md` — cipher constants, block structures, the four 1.2-era deltas. Ratified against two distinct real datasets (2026-08-15 + 2026-08-16). Cite as fact; the public references are stale.
-- **Design system:** `zmuuzn/documents/design-systems/00012-system-smugglers-ledger.md` — **GASLAMP DOUBLE-ENTRY**. Litmus for every UI decision: *would a gaslamp double-entry ledger do this?* No pills, no glow, no spinner, no refresh button, radius 0, ONE shadow.
+- **Design system:** `zmuuzn/documents/design-systems/00012-system-smugglers-ledger.md` — **GASLAMP DOUBLE-ENTRY** structure; **BLOOD & PARCHMENT** palette (Lot C, investor-ruled 2026-08-16, v0.4.0 — Grim Dawn's blood-red chrome over darkened leather, aged-parchment page). Litmus for every UI decision: *would a gaslamp double-entry ledger do this?* No pills, no glow, no spinner, no refresh button, radius 0, ONE shadow. **Palette lives in TWO places in `uno.config.ts` — the `theme.colors` map (utility classes) AND the `:root` custom properties (inline `var()` styles) — they MUST agree or the page ships half-brown. The lamp is SPLIT: `--sl-lamp` (#E0705E, lit red) is legible chrome text; `--sl-oxblood` (#A32E24) tints the non-text wash only (2.6:1, forbidden as text).**
 - **Wireframe:** `zmuuzn/documents/wireframes/00038-wire-ledger-overview.md`
 
 ## The Architecture Contract (Investor-Ratified 2026-08-16)
@@ -68,6 +68,11 @@ npm run build            # vue-tsc + vite build
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test               # every [GATE] criterion on committed fixtures
+# .oxlintrc.json tracks the war-room canonical (refreshed 2026-08-16): the
+# tests/** vitest override means a stray `.only` FAILS the gate. dependabot.yml
+# mirrors the Cube. tauri.conf.json ships a restrictive CSP (self-only; the
+# updater fetch is Rust-side, not webview) — awaiting the Windows pass to
+# confirm the webview renders under it.
 
 # The two floors (repo root)
 bash scripts/read-only-audit.sh    # RD-2

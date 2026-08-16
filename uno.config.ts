@@ -30,20 +30,25 @@ export default defineConfig({
   theme: {
     colors: {
       // Soot ground — the room you stand in
-      "sl-soot": "#14110E",
-      "sl-cellar": "#1E1A15",
-      "sl-iron": "#332C24",
-      "sl-chalk": "#D9CFB6",
-      "sl-chalk-soft": "#A89C82",
-      "sl-lamp": "#D89B32",
-      "sl-wax-lit": "#CE6A52",
+      // BLOOD & PARCHMENT (Lot C) — these MUST track the :root custom
+      // properties below; UnoCSS resolves bg-sl-*/text-sl-* utilities through
+      // this map, while inline var(--sl-*) styles read :root. Two surfaces,
+      // one palette — edit both or the page ships half-brown.
+      "sl-soot": "#171210",
+      "sl-cellar": "#201815",
+      "sl-iron": "#3D2E26",
+      "sl-chalk": "#CBB89A",
+      "sl-chalk-soft": "#A0917A",
+      "sl-lamp": "#E0705E",
+      "sl-oxblood": "#A32E24",
+      "sl-wax-lit": "#EC8574",
       // Folio ground — the page you read
-      "sl-folio": "#EDE4CE",
-      "sl-folio-shade": "#E2D7BC",
-      "sl-ink": "#24201A",
-      "sl-ink-soft": "rgba(36,32,26,0.68)",
-      "sl-rule": "rgba(36,32,26,0.18)",
-      "sl-rule-strong": "rgba(36,32,26,0.42)",
+      "sl-folio": "#E5D9BC",
+      "sl-folio-shade": "#D9CCAA",
+      "sl-ink": "#241D16",
+      "sl-ink-soft": "rgba(36,29,22,0.68)",
+      "sl-rule": "rgba(36,29,22,0.18)",
+      "sl-rule-strong": "rgba(36,29,22,0.42)",
       "sl-wax": "#8E2B22",
     },
     fontFamily: {
@@ -82,21 +87,30 @@ const PREFLIGHT_CSS = `
         :root {
           color-scheme: dark;
           /* -- soot ground -- */
-          --sl-soot: #14110E;
-          --sl-cellar: #1E1A15;
-          --sl-iron: #332C24;
-          --sl-chalk: #D9CFB6;
-          --sl-chalk-soft: #A89C82;
-          --sl-lamp: #D89B32;
-          --sl-wax-lit: #CE6A52;
-          /* -- folio ground -- */
-          --sl-folio: #EDE4CE;
-          --sl-folio-shade: #E2D7BC;
-          --sl-ink: #24201A;
-          --sl-ink-soft: rgba(36,32,26,0.68); /* 0.68, NOT 0.62 — 0.62 measured 4.24:1 and failed */
-          --sl-rule: rgba(36,32,26,0.18);
-          --sl-rule-strong: rgba(36,32,26,0.42);
-          --sl-wax: #8E2B22;
+          /* BLOOD & PARCHMENT (Lot C, investor-ruled 2026-08-16): Grim Dawn's
+             own chrome — the blood-red of the logo and health globe over
+             darkened leather, page as true aged parchment. Every value below
+             carries a measured WCAG ratio; the lamp SPLIT is load-bearing —
+             deep oxblood (#A32E24) is legible-irrelevant (it only tints the
+             non-text wash), while the interactive lamp is a LIT blood-red so
+             chrome labels clear 4.5:1 on the dark room (oxblood-as-text was
+             2.6:1 and failed). */
+          --sl-soot: #171210;          /* darkened leather — the room */
+          --sl-cellar: #201815;        /* strip / panel ground */
+          --sl-iron: #3D2E26;          /* dark borders */
+          --sl-chalk: #CBB89A;         /* dark-room text — 9.6:1 on soot */
+          --sl-chalk-soft: #A0917A;    /* dimmed secondary — 6.0:1 on soot */
+          --sl-lamp: #E0705E;          /* LIT blood-red — interactive accent, 5.9:1 on soot / 5.5:1 on strip */
+          --sl-oxblood: #A32E24;       /* deep blood — wash + non-text borders ONLY, never a text colour */
+          --sl-wax-lit: #EC8574;       /* the Refused alarm red — 7.2:1 on soot */
+          /* -- folio ground (aged parchment) -- */
+          --sl-folio: #E5D9BC;
+          --sl-folio-shade: #D9CCAA;
+          --sl-ink: #241D16;           /* 11.9:1 on parchment */
+          --sl-ink-soft: rgba(36,29,22,0.68); /* 4.9:1 on folio / 4.6:1 on shade — verified, do not lower the alpha */
+          --sl-rule: rgba(36,29,22,0.18);
+          --sl-rule-strong: rgba(36,29,22,0.42);
+          --sl-wax: #8E2B22;           /* the strike red on parchment — 6.0:1, a bookkeeper's correction */
           /* -- rarity ink ramp (six ordinals; stamp glyph first, colour second) -- */
           --sl-tier-0: #3A342A;
           --sl-tier-1: #6B5810;
@@ -120,7 +134,7 @@ const PREFLIGHT_CSS = `
           --sl-gutter: 24px;
           /* -- the one shadow, the one lamp -- */
           --sl-shadow-folio: 6px 6px 0 rgba(0,0,0,0.55);
-          --sl-lamp-wash: radial-gradient(120% 80% at 50% -10%, rgba(216,155,50,0.13) 0%, rgba(216,155,50,0.04) 38%, transparent 68%);
+          --sl-lamp-wash: radial-gradient(120% 80% at 50% -10%, rgba(163,46,36,0.15) 0%, rgba(163,46,36,0.05) 38%, transparent 68%);
           /* -- motion -- */
           --sl-dur-ink: 1500ms;
           --sl-dur-swap: 160ms;

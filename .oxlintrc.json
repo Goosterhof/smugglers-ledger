@@ -46,6 +46,12 @@
         "prefer-template": "warn",
         "radix": "error",
 
+        // Graduated since the config was snapshotted (war-room canonical refresh, General review 2026-08-16)
+        "getter-return": "error", // 1.61 — graduated nursery → correctness
+        "no-implied-eval": "error", // 1.66 — security-relevant
+        "prefer-regex-literals": "error", // 1.64 — new RegExp("foo") → /foo/
+        "no-useless-assignment": "warn", // 1.59 — assignments whose value is never read
+
         // Complexity limits — canonical war-room defaults
         "complexity": ["error", 10],
         "max-params": ["error", 4],
@@ -161,6 +167,29 @@
     },
     "overrides": [
         {"files": ["*.vue"], "rules": {"no-undef": "off"}},
-        {"files": ["src/**/*.ts"], "rules": {"import/no-default-export": "off"}}
+        {"files": ["src/**/*.ts"], "rules": {"import/no-default-export": "off"}},
+        {
+            "files": ["tests/**", "**/*.spec.ts", "**/*.test.ts"],
+            "rules": {
+                "no-restricted-imports": "off",
+                "no-restricted-globals": "off",
+                "max-lines-per-function": "off",
+                "max-nested-callbacks": "off",
+                "complexity": "off",
+                "vitest/no-disabled-tests": "error",
+                "vitest/no-focused-tests": "error",
+                "vitest/no-identical-title": "error",
+                "vitest/prefer-strict-equal": "error",
+                "vitest/prefer-to-be": "error",
+                "vitest/prefer-to-contain": "error",
+                "vitest/valid-expect": "error",
+                "vitest/expect-expect": "error",
+                "vitest/no-conditional-expect": "error",
+                "vitest/valid-describe-callback": "error",
+                "vitest/no-commented-out-tests": "error",
+                "vitest/valid-expect-in-promise": "error",
+                "vitest/prefer-strict-boolean-matchers": "warn"
+            }
+        }
     ]
 }
