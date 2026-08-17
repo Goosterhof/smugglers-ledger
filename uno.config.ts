@@ -51,6 +51,12 @@ export default defineConfig({
       // The one accent (ichor — rule/edge/glyph only), the ember secondary,
       // the correction reds:
       "sl-lamp": "#D95C4C",
+      // v0.7.0 THE CLOTTED CHROME — ichor's two new bodies. The wet ink the
+      // room's controls are written in, and the dried ground the chosen one
+      // sits on. Both measured; see #00013 §5. Mirror in :root below.
+      "sl-ichor-ink": "#E6614F",
+      "sl-clot": "#5A1815",
+      "sl-clot-deep": "#230A0B",
       "sl-ember": "#C98F3E",
       "sl-wax": "#E0705E",
       "sl-wax-lit": "#EC8574",
@@ -69,6 +75,13 @@ export default defineConfig({
     // Chrome labels — the room's voice
     "sl-chrome-label":
       "font-chrome text-[11px] leading-[16px] font-700 tracking-[1.5px] uppercase",
+    // THE CHIT — the v0.7.0 button language. A control at rest is written in
+    // wet ichor; the one you have taken inverts to ash on dried blood behind
+    // the system's own 2px lamp inset rule. Commands wear the taken dress at
+    // rest, because a command is a choice already made.
+    "sl-chit": "text-sl-ichor-ink hover:bg-sl-clot-deep hover:text-sl-chalk",
+    "sl-chit-taken":
+      "bg-sl-clot text-sl-chalk shadow-[inset_2px_0_0_0_var(--sl-lamp)]",
     // Column heads and stamp lines — the figures' smallest register
     "sl-column-head":
       "font-figure text-[11px] leading-[26px] font-600 tracking-[1.6px] uppercase",
@@ -113,7 +126,15 @@ const PREFLIGHT_CSS = `
           --sl-rule: rgba(188,193,194,0.13);       /* hairline ruling — light-alpha so it reads on dark */
           --sl-rule-strong: rgba(188,193,194,0.28); /* separators, sheet edge, margin rule */
           /* The one accent, the ember secondary, the correction reds: */
-          --sl-lamp: #D95C4C;          /* ichor — rule/edge/glyph ONLY, never small body text (clears 3:1 as a rule everywhere) */
+          --sl-lamp: #D95C4C;          /* ichor — the rule/edge/focus colour (v0.7.0: see THE ICHOR LAW in #00013 — room ink + chosen ground now live in the two tokens below) */
+          /* v0.7.0 THE CLOTTED CHROME — ichor's two new bodies (mirrors
+             theme.colors above verbatim). Wet: the ink every resting control
+             in the ROOM is written in. Dried: the ground the chosen control
+             and every command sit on. NO loot hue may ever land on --sl-clot
+             (Epic blue measures 4.04 there); --sl-wax may not either (4.22). */
+          --sl-ichor-ink: #E6614F;   /* control ink — 5.94 soot / 5.81 cellar / 5.73 folio / 5.44 band */
+          --sl-clot: #5A1815;        /* the taken chit's dried-blood ground — chalk on it 7.32 */
+          --sl-clot-deep: #230A0B;   /* the hover wash — chalk on it 10.31, ichor-ink 5.53 */
           --sl-ember: #C98F3E;         /* warm brass — stat magnitudes, footed totals, the sort caret — 6.93:1 folio */
           --sl-wax: #E0705E;           /* the correction red as small text (struck word, Strike/Lift verbs) — 6.16:1 folio */
           --sl-wax-lit: #EC8574;       /* the Refused/flagged alarm on the room — 7.85:1 soot */

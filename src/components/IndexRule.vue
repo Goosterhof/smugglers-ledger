@@ -23,7 +23,7 @@ onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 
 <template>
   <div
-    class="flex items-center gap-[8px] h-[26px] mb-[26px] border-b border-sl-rule-strong focus-within:border-b-2 focus-within:border-sl-ink"
+    class="flex items-center gap-[8px] h-[26px] mb-[26px] border-b border-sl-rule-strong focus-within:border-b-2 focus-within:border-sl-lamp"
   >
     <span class="text-sl-ink-soft" aria-hidden="true">▸</span>
     <input

@@ -57,8 +57,8 @@ const foot = computed(() => {
             // Active head: brightened ash word + a drawn 2px ichor subtotal
             // rule beneath (ichor as a RULE, never inked text) + an ember caret.
             sortKey === col.key
-              ? 'text-sl-ink border-b-2 border-sl-lamp'
-              : 'text-sl-ink-soft hover:text-sl-ink',
+              ? 'sl-chit-taken border-b-2 border-sl-lamp'
+              : 'text-sl-ink-soft hover:bg-sl-clot-deep hover:text-sl-ink',
           ]"
           :aria-sort="
             sortKey === col.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'

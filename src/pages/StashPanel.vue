@@ -66,9 +66,11 @@ const foot = computed(() => {
         <button
           v-for="(_, i) in stash.tabs"
           :key="i"
-          class="sl-entry-figure px-[10px] border border-sl-rule-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-sl-lamp"
+          class="sl-entry-figure px-[10px] border focus-visible:outline focus-visible:outline-2 focus-visible:outline-sl-lamp"
           :class="
-            i === tabIndex ? 'bg-sl-ink text-sl-folio' : 'text-sl-ink hover:bg-sl-folio-shade'
+            i === tabIndex
+              ? 'sl-chit-taken border-sl-lamp'
+              : 'text-sl-ink border-sl-rule-strong hover:bg-sl-clot-deep'
           "
           :aria-current="i === tabIndex ? 'true' : undefined"
           @click="tabIndex = i"
