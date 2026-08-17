@@ -17,6 +17,9 @@ export interface NamedContraband {
   seed: number;
   /** Aggregated stat lines (base + affixes + component + augment). */
   stats: StatLine[];
+  /** Skill grafts — "+2 · to Blade Arc" plus-skills and Monster Infrequent
+   * modifier lines, aggregated the same way. Search matches these labels. */
+  skills: StatLine[];
   /** The base record's icon bitmap path, or null (affixes have no icon). */
   bitmap: string | null;
   stack: number;
@@ -81,6 +84,8 @@ export interface LedgerHit {
   augment: string | null;
   seed: number;
   stats: StatLine[];
+  /** Skill grafts — the labels the skill search matched on. */
+  skills: StatLine[];
   bitmap: string | null;
   stack: number;
   /** The owner — a character name in caps, or "SHARED STASH". */

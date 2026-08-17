@@ -215,6 +215,10 @@ pub struct NamedContraband {
     /// The item's full stat lines — base record + every affix + component +
     /// augment, aggregated in read order.
     pub stats: Vec<StatLine>,
+    /// The item's skill grafts — plus-skills, mastery grants, and the Monster
+    /// Infrequent modifier lines — aggregated the same way. The skill search
+    /// matches on these labels.
+    pub skills: Vec<StatLine>,
     /// The base record's icon bitmap path (`.tex` in Items.arc), if any.
     pub bitmap: Option<String>,
     pub stack: u32,
@@ -270,6 +274,7 @@ pub struct LedgerHit {
     pub augment: Option<String>,
     pub seed: u32,
     pub stats: Vec<StatLine>,
+    pub skills: Vec<StatLine>,
     pub bitmap: Option<String>,
     pub stack: u32,
     /// The owner in the location's own casing — a character name, or
@@ -293,9 +298,11 @@ fn name_item(hoard: &Hoard, item: &Contraband, x: u32, y: u32) -> NamedContraban
             .and_then(|r| r.name.clone())
             .or_else(|| Some(affix.clone()))
     };
-    // The item's stats are its base record's plus every affix, component, and
-    // augment it carries — collected in the order a player reads them.
+    // The item's stats and skill grafts are its base record's plus every
+    // affix, component, and augment it carries — collected in the order a
+    // player reads them (a "+1 to Cadence" suffix counts as much as the base).
     let mut stats: Vec<StatLine> = Vec::new();
+    let mut skills: Vec<StatLine> = Vec::new();
     for record_name in [
         &item.base_name,
         &item.prefix_name,
@@ -305,6 +312,7 @@ fn name_item(hoard: &Hoard, item: &Contraband, x: u32, y: u32) -> NamedContraban
     ] {
         if let Some(r) = hoard.resolved.get(record_name) {
             stats.extend(r.stats.iter().cloned());
+            skills.extend(r.skills.iter().cloned());
         }
     }
     NamedContraband {
@@ -318,6 +326,7 @@ fn name_item(hoard: &Hoard, item: &Contraband, x: u32, y: u32) -> NamedContraban
         augment: affix_name(&item.augment_name),
         seed: item.seed,
         stats,
+        skills,
         bitmap: resolved.and_then(|r| r.bitmap.clone()),
         stack: item.stack_count.max(1),
         x,
@@ -406,7 +415,9 @@ pub fn warehouse_sheet(hoard: &Hoard) -> WarehouseSheet {
 /// Search every location the hoard has: bags, equipment, both weapon sets,
 /// personal stashes, and the shared warehouse. Matches the resolved display
 /// name OR the raw record path (case-insensitive), so an item the codex
-/// missed is findable by the same string the UI shows for it (the 4C ruling).
+/// missed is findable by the same string the UI shows for it (the 4C ruling)
+/// — AND the skill-graft labels, so searching a skill surfaces every item
+/// that grants "+N to it" and every Monster Infrequent that modifies it.
 pub fn search_hoard(hoard: &Hoard, query: &str) -> Vec<LedgerHit> {
     let needle = query.trim().to_lowercase();
     if needle.is_empty() {
@@ -435,6 +446,10 @@ pub fn search_hoard(hoard: &Hoard, query: &str) -> Vec<LedgerHit> {
                 .augment
                 .as_deref()
                 .is_some_and(|a| a.to_lowercase().contains(&needle))
+            || named
+                .skills
+                .iter()
+                .any(|s| s.label.to_lowercase().contains(&needle))
     };
     let mut push = |named: NamedContraband, hand: &str, place: &str, location: String| {
         debug_assert!(!location.is_empty(), "the location contract is absolute");
@@ -450,6 +465,7 @@ pub fn search_hoard(hoard: &Hoard, query: &str) -> Vec<LedgerHit> {
                 augment: named.augment,
                 seed: named.seed,
                 stats: named.stats,
+                skills: named.skills,
                 bitmap: named.bitmap,
                 stack: named.stack,
                 hand: hand.to_string(),

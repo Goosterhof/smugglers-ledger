@@ -139,6 +139,20 @@ watch(open, async (isOpen) => {
         </p>
       </div>
 
+      <!-- THE SKILL GRAFTS — plus-skills and Monster Infrequent modifier
+           lines, the labels the skill search matches on. Same two-tone hand
+           as the stats, ruled apart so a graft reads as a graft. -->
+      <div
+        v-if="hit.skills.length > 0"
+        class="border-l border-sl-rule-strong pl-[12px] my-[6px]"
+        data-testid="skill-block"
+      >
+        <p v-for="(skill, s) in hit.skills" :key="s" class="sl-entry-sub leading-[20px]">
+          <span class="text-sl-ember tabular-nums">{{ skill.magnitude }}</span>
+          <span class="text-sl-ink"> {{ skill.label }}</span>
+        </p>
+      </div>
+
       <div class="grid grid-cols-[96px_1fr] gap-x-[12px]">
         <span class="sl-column-head text-sl-ink-soft leading-[26px]">Rarity</span>
         <span class="sl-entry-sub text-sl-ink leading-[26px]"

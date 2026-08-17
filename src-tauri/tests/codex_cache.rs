@@ -198,6 +198,40 @@ fn it_should_serve_from_cache_without_rereading_the_shelves_when_the_hash_matche
     );
 }
 
+/// Direction 3: a cache written by an OLDER code schema is discarded even
+/// when the database hash still matches — a resolve that learned new fields
+/// (the skill grafts) must never serve entries that predate them.
+#[test]
+fn it_should_discard_a_cache_written_by_an_older_schema() {
+    let install = tempfile::tempdir().unwrap();
+    let cache = tempfile::tempdir().unwrap();
+    forge_install(install.path(), "Test Sabre");
+
+    // Cold resolve, then rewrite the cache the way an older build left it:
+    // no schema field at all, plus the marker only the cache could serve.
+    let mut codex = Codex::open(install.path(), cache.path()).unwrap();
+    codex.resolve(&worklist()).unwrap();
+    let cache_file = cache.path().join("codex-cache.json");
+    let mut cached: serde_json::Value =
+        serde_json::from_slice(&fs::read(&cache_file).unwrap()).unwrap();
+    cached["entries"][PHANTOM]["name"] = serde_json::Value::String("From The Cache".into());
+    cached.as_object_mut().unwrap().remove("schema");
+    fs::write(&cache_file, serde_json::to_vec(&cached).unwrap()).unwrap();
+
+    // Re-open: the hash matches but the schema does not — discard wholesale.
+    let mut reopened = Codex::open(install.path(), cache.path()).unwrap();
+    let resolved = reopened.resolve(&worklist()).unwrap();
+    assert_eq!(
+        resolved[PHANTOM].name, None,
+        "the planted marker is gone — the pre-schema cache was not trusted"
+    );
+    assert_eq!(
+        resolved[RECORD].name.as_deref(),
+        Some("Test Sabre"),
+        "the fresh resolve re-read the shelves"
+    );
+}
+
 /// Direction 2: changed hash → the cache is discarded and the shelves are
 /// actually re-resolved.
 #[test]

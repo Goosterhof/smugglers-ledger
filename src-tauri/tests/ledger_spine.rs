@@ -9,8 +9,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use smugglers_ledger_lib::codex::{ResolvedRecord, StatLine};
 use smugglers_ledger_lib::ledger::{
-    assemble_hoard, character_sheets, search_hoard, warehouse_sheet,
+    assemble_hoard, character_sheets, distinct_records, search_hoard, warehouse_sheet,
 };
 
 fn fixture(name: &str) -> PathBuf {
@@ -173,4 +174,57 @@ fn it_should_find_unresolved_contraband_by_its_raw_record_path() {
         assert!(hit.record_path.contains("compa_ectoplasm"));
         assert!(!hit.location.is_empty());
     }
+}
+
+/// The skill search: a query naming a skill surfaces every item whose
+/// resolved record grafts it — a "+2 to Blade Arc" grant, a Monster
+/// Infrequent's modifier line — even though no display name, affix, or
+/// record path contains the skill's name.
+#[test]
+fn it_should_find_items_by_the_skills_they_graft() {
+    let root = tempfile::tempdir().unwrap();
+    build_fixture_root(root.path());
+    let mut hoard = assemble_hoard(root.path());
+
+    // Hand-resolve one record the fixture hoard actually holds, grafting a
+    // skill grant and an MI modifier line onto it — the codex's output shape.
+    let target = distinct_records(&hoard)
+        .into_iter()
+        .next()
+        .expect("the fixture hoard is not empty");
+    hoard.resolved.insert(
+        target.clone(),
+        ResolvedRecord {
+            skills: vec![
+                StatLine {
+                    magnitude: "+2".into(),
+                    label: "to Blade Arc".into(),
+                },
+                StatLine {
+                    magnitude: "+70%".into(),
+                    label: "Fire Damage to Blade Arc".into(),
+                },
+            ],
+            ..ResolvedRecord::default()
+        },
+    );
+
+    let hits = search_hoard(&hoard, "blade arc");
+    assert!(
+        !hits.is_empty(),
+        "the grafted skill matches even with no name containing the query"
+    );
+    for hit in &hits {
+        assert!(
+            hit.skills
+                .iter()
+                .any(|s| s.label.to_lowercase().contains("blade arc")),
+            "every hit carries the matching graft line"
+        );
+        assert!(!hit.location.is_empty(), "the location contract holds");
+    }
+    assert!(
+        search_hoard(&hoard, "cadence").is_empty(),
+        "a skill nothing grafts still matches nothing"
+    );
 }
