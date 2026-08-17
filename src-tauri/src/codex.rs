@@ -79,10 +79,25 @@ pub struct ResolvedRecord {
     /// is decoded from. Only base items carry one (affixes have no icon).
     #[serde(default)]
     pub bitmap: Option<String>,
+    /// The record's skill grafts, resolved to readable lines: "+2 · to Blade
+    /// Arc" plus-skills, mastery and all-skills grants, granted item skills,
+    /// and the Monster Infrequent modifier lines ("+70% · Fire Damage to
+    /// Savagery"). Searchable — the skill search matches on these labels.
+    #[serde(default)]
+    pub skills: Vec<StatLine>,
 }
+
+/// Bump when [`ResolvedRecord`] gains fields an older cache cannot carry —
+/// a schema mismatch discards the cache exactly the way a game patch does,
+/// so no entry is ever served missing its newer fields. History: 2 = the
+/// skill grafts (`skills`).
+const CODEX_SCHEMA: u32 = 2;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 struct CodexCache {
+    /// The code's resolve schema at write time — see [`CODEX_SCHEMA`].
+    #[serde(default)]
+    schema: u32,
     /// Identity of the install's database files — a changed game patch
     /// changes this and invalidates every entry below.
     db_hash: String,
@@ -326,22 +341,35 @@ impl ArzShelf {
             }
             if field_type == 2 && count >= 1 {
                 if let Some(field_name) = self.strings.get(name_idx) {
-                    if let Some(target) = essentials.slot_for(field_name) {
-                        let value_idx = le_u32(&body, pos)? as usize;
-                        if let Some(value) = self.strings.get(value_idx) {
+                    let value_idx = le_u32(&body, pos)? as usize;
+                    if let Some(value) = self.strings.get(value_idx) {
+                        if let Some(target) = essentials.slot_for(field_name) {
                             *target = Some(value.clone());
+                        } else if is_skill_ref_property(field_name) && !value.is_empty() {
+                            essentials
+                                .skill_refs
+                                .push((field_name.clone(), value.clone()));
                         }
                     }
                 }
-            } else if field_type == 1 && count == 1 {
-                // t1 = a float-as-bits scalar (the stat magnitudes). Capture the
-                // value-bearing, non-zero stat properties; the formatter turns
-                // them into readable lines. XOR/Global flags stay 0 and are
-                // dropped by the non-zero filter and the formatter's allowlist.
+            } else if (field_type == 0 || field_type == 1) && count == 1 {
+                // t1 = a float-as-bits scalar (the stat magnitudes), t0 = an
+                // int32 (the skill grant levels). Capture the value-bearing,
+                // non-zero stat properties; the formatter turns them into
+                // readable lines. XOR/Global flags stay 0 and are dropped by
+                // the non-zero filter and the formatter's allowlist.
                 if let Some(field_name) = self.strings.get(name_idx) {
-                    let value = f32::from_bits(le_u32(&body, pos)?);
-                    if value != 0.0 && is_stat_property(field_name) {
+                    let raw = le_u32(&body, pos)?;
+                    let value = if field_type == 1 {
+                        f32::from_bits(raw)
+                    } else {
+                        raw as i32 as f32
+                    };
+                    if field_type == 1 && value != 0.0 && is_stat_property(field_name) {
                         essentials.stat_fields.push((field_name.clone(), value));
+                    }
+                    if value != 0.0 && is_skill_level_property(field_name) {
+                        essentials.skill_levels.push((field_name.clone(), value));
                     }
                 }
             }
@@ -361,8 +389,20 @@ struct RecordEssentials {
     class: Option<String>,
     loot_randomizer_name: Option<String>,
     bitmap: Option<String>,
+    /// A skill record's own display tag — read when a skill graft is chased
+    /// to the record it points at, never present on items.
+    skill_display_tag: Option<String>,
+    /// Skill-record indirection: an aura/pet skill hides its display name one
+    /// record deeper, behind `buffSkillName` / `petSkillName`.
+    buff_skill: Option<String>,
+    pet_skill: Option<String>,
     /// Raw (property, value) stat fields captured from the record's t1 floats.
     stat_fields: Vec<(String, f32)>,
+    /// Raw skill-graft string fields: `augmentSkillName1` → a skill record
+    /// path, the `modifiedSkillName`/`modifierSkillName` pairs, and so on.
+    skill_refs: Vec<(String, String)>,
+    /// Raw skill-graft numeric fields (`augmentSkillLevel1`, `augmentAllLevel`).
+    skill_levels: Vec<(String, f32)>,
 }
 
 impl RecordEssentials {
@@ -374,6 +414,9 @@ impl RecordEssentials {
             "Class" => Some(&mut self.class),
             "lootRandomizerName" => Some(&mut self.loot_randomizer_name),
             "bitmap" => Some(&mut self.bitmap),
+            "skillDisplayName" => Some(&mut self.skill_display_tag),
+            "buffSkillName" => Some(&mut self.buff_skill),
+            "petSkillName" => Some(&mut self.pet_skill),
             _ => None,
         }
     }
@@ -389,6 +432,174 @@ fn is_stat_property(name: &str) -> bool {
         && !name.ends_with("Global")
         && !name.ends_with("XOR")
         && !name.ends_with("Tag")
+}
+
+/// The skill-graft string fields: "+N to <Skill>" grants and mastery grants,
+/// a granted item skill, and the Monster Infrequent modifier pairs
+/// (`modifiedSkillNameN` names the skill; `modifierSkillNameN` names the
+/// modifier record carrying the stats).
+fn is_skill_ref_property(name: &str) -> bool {
+    name.starts_with("augmentSkillName")
+        || name.starts_with("augmentMasteryName")
+        || name.starts_with("modifiedSkillName")
+        || name.starts_with("modifierSkillName")
+        || name == "itemSkillName"
+}
+
+/// The skill-graft numeric fields — the levels the grants above carry.
+fn is_skill_level_property(name: &str) -> bool {
+    name.starts_with("augmentSkillLevel")
+        || name.starts_with("augmentMasteryLevel")
+        || name == "augmentAllLevel"
+}
+
+/// `augmentSkillName1` under prefix `augmentSkillName` → `Some(1)` — the
+/// index that pairs a Name field with its Level (or Modifier) sibling.
+fn field_index(name: &str, prefix: &str) -> Option<u32> {
+    name.strip_prefix(prefix)?.parse().ok()
+}
+
+/// The first shelf that holds the record wins — the same precedence the item
+/// resolve uses. A shelf that errors on an auxiliary lookup is skipped: a
+/// missing skill name degrades to the raw path, never sinks the resolve.
+fn lookup_record(shelves: &[ArzShelf], path: &str) -> Option<RecordEssentials> {
+    shelves
+        .iter()
+        .find_map(|shelf| shelf.record_essentials(path).ok().flatten())
+}
+
+/// Resolve a skill record path to its display name: the record's own
+/// `skillDisplayName` tag, chasing `buffSkillName`/`petSkillName` indirection
+/// (an aura or pet skill hides its name one record deeper). Falls back to the
+/// raw record path — searchable by the same string the UI shows for it (4C).
+fn skill_display_name(
+    shelves: &[ArzShelf],
+    localization: &HashMap<String, String>,
+    path: &str,
+    memo: &mut HashMap<String, String>,
+) -> String {
+    if let Some(known) = memo.get(path) {
+        return known.clone();
+    }
+    let mut current = path.to_string();
+    let mut name = None;
+    for _hop in 0..4 {
+        let Some(essentials) = lookup_record(shelves, &current) else {
+            break;
+        };
+        if let Some(tag) = essentials.skill_display_tag.as_deref() {
+            name = localization.get(tag).cloned();
+            break;
+        }
+        match essentials.buff_skill.or(essentials.pet_skill) {
+            Some(next) => current = next,
+            None => break,
+        }
+    }
+    let resolved = name.unwrap_or_else(|| path.to_string());
+    memo.insert(path.to_string(), resolved.clone());
+    resolved
+}
+
+/// Turn a record's raw skill grafts into readable, searchable lines:
+/// `+2 · to Blade Arc`, `+1 · to All Skills in Soldier`, `Grants · Whirlwind`,
+/// and — the Monster Infrequent case — the modifier record's own stats
+/// suffixed onto the skill they modify (`+70% · Fire Damage to Savagery`),
+/// or a bare `Modifies · <Skill>` line when the modifier carries no mapped
+/// stat, so the skill search never loses the item.
+fn skill_lines(
+    essentials: &RecordEssentials,
+    shelves: &[ArzShelf],
+    localization: &HashMap<String, String>,
+    memo: &mut HashMap<String, String>,
+) -> Vec<StatLine> {
+    use std::collections::BTreeMap;
+    let mut grants: BTreeMap<u32, &str> = BTreeMap::new();
+    let mut masteries: BTreeMap<u32, &str> = BTreeMap::new();
+    let mut modified: BTreeMap<u32, &str> = BTreeMap::new();
+    let mut modifiers: BTreeMap<u32, &str> = BTreeMap::new();
+    let mut item_skill: Option<&str> = None;
+    for (field, value) in &essentials.skill_refs {
+        if let Some(i) = field_index(field, "augmentSkillName") {
+            grants.insert(i, value);
+        } else if let Some(i) = field_index(field, "augmentMasteryName") {
+            masteries.insert(i, value);
+        } else if let Some(i) = field_index(field, "modifiedSkillName") {
+            modified.insert(i, value);
+        } else if let Some(i) = field_index(field, "modifierSkillName") {
+            modifiers.insert(i, value);
+        } else if field == "itemSkillName" {
+            item_skill = Some(value);
+        }
+    }
+    // A grant whose level field never surfaced still grants — the game's
+    // floor is +1, so that is the honest default.
+    let level = |prefix: &str, i: u32| -> f32 {
+        essentials
+            .skill_levels
+            .iter()
+            .find(|(field, _)| field_index(field, prefix) == Some(i))
+            .map(|(_, v)| *v)
+            .unwrap_or(1.0)
+    };
+
+    let mut out = Vec::new();
+    for (i, path) in &grants {
+        out.push(StatLine {
+            magnitude: format!("+{}", num(level("augmentSkillLevel", *i))),
+            label: format!(
+                "to {}",
+                skill_display_name(shelves, localization, path, memo)
+            ),
+        });
+    }
+    for (i, path) in &masteries {
+        out.push(StatLine {
+            magnitude: format!("+{}", num(level("augmentMasteryLevel", *i))),
+            label: format!(
+                "to All Skills in {}",
+                skill_display_name(shelves, localization, path, memo)
+            ),
+        });
+    }
+    if let Some((_, v)) = essentials
+        .skill_levels
+        .iter()
+        .find(|(field, _)| field == "augmentAllLevel")
+    {
+        out.push(StatLine {
+            magnitude: format!("+{}", num(*v)),
+            label: "to All Skills".into(),
+        });
+    }
+    if let Some(path) = item_skill {
+        out.push(StatLine {
+            magnitude: "Grants".into(),
+            label: skill_display_name(shelves, localization, path, memo),
+        });
+    }
+    for (i, path) in &modified {
+        let skill = skill_display_name(shelves, localization, path, memo);
+        let modifier_stats = modifiers
+            .get(i)
+            .and_then(|m| lookup_record(shelves, m))
+            .map(|e| format_stats(&e.stat_fields))
+            .unwrap_or_default();
+        if modifier_stats.is_empty() {
+            out.push(StatLine {
+                magnitude: "Modifies".into(),
+                label: skill,
+            });
+        } else {
+            for line in modifier_stats {
+                out.push(StatLine {
+                    magnitude: line.magnitude,
+                    label: format!("{} to {}", line.label, skill),
+                });
+            }
+        }
+    }
+    out
 }
 
 /// The elements, in the game's own read order, with their display names
@@ -621,13 +832,15 @@ impl Codex {
         let cache_path = cache_dir.join(CACHE_FILE);
         let cache = match std::fs::read(&cache_path) {
             Ok(bytes) => match serde_json::from_slice::<CodexCache>(&bytes) {
-                Ok(cached) if cached.db_hash == db_hash => cached,
+                Ok(cached) if cached.db_hash == db_hash && cached.schema == CODEX_SCHEMA => cached,
                 _ => CodexCache {
+                    schema: CODEX_SCHEMA,
                     db_hash,
                     entries: HashMap::new(),
                 },
             },
             Err(_) => CodexCache {
+                schema: CODEX_SCHEMA,
                 db_hash,
                 entries: HashMap::new(),
             },
@@ -667,6 +880,9 @@ impl Codex {
             let shelves = self.shelves.as_ref().expect("just opened");
             let localization = self.localization.as_ref().expect("just opened");
             let mut fresh = HashMap::with_capacity(missing.len());
+            // Skill names repeat across a hoard (every Soldier belt grafts the
+            // same mastery) — one memo serves the whole resolve.
+            let mut skill_memo: HashMap<String, String> = HashMap::new();
             for path in &missing {
                 let mut resolved = ResolvedRecord::default();
                 for shelf in shelves {
@@ -678,6 +894,8 @@ impl Codex {
                             .or(essentials.description.as_deref());
                         resolved.name = tag.and_then(|t| localization.get(t).cloned());
                         resolved.tier = classification_tier(essentials.classification.as_deref());
+                        resolved.skills =
+                            skill_lines(&essentials, shelves, localization, &mut skill_memo);
                         resolved.classification = essentials.classification;
                         resolved.slot_class = essentials.class;
                         resolved.stats = format_stats(&essentials.stat_fields);

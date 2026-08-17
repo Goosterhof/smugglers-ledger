@@ -18,6 +18,7 @@ function hit(over: Record<string, unknown>) {
     augment: null,
     seed: 0,
     stats: [],
+    skills: [],
     bitmap: null,
     stack: 1,
     hand: "SPINNY",

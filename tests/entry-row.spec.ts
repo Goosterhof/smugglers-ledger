@@ -24,6 +24,7 @@ const NAMED = {
   augment: null,
   seed: 277104776,
   stats: [],
+  skills: [],
   bitmap: null,
   stack: 12,
   hand: "SPINNY",
@@ -102,6 +103,28 @@ describe("EntryRow", () => {
     expect(block.text()).toContain("Lightning Damage");
     expect(block.text()).toContain("+35");
     expect(block.text()).toContain("Armor");
+  });
+
+  it("should rule the skill grafts apart from the stats in the docket", async () => {
+    wrapper = mount(EntryRow, {
+      props: {
+        hit: {
+          ...NAMED,
+          skills: [
+            { magnitude: "+2", label: "to Blade Arc" },
+            { magnitude: "+70%", label: "Fire Damage to Savagery" },
+          ],
+        },
+      },
+    });
+    await wrapper.get("[data-testid='entry-row']").trigger("click");
+    const block = wrapper.get("[data-testid='skill-block']");
+    expect(block.text()).toContain("+2");
+    expect(block.text()).toContain("to Blade Arc");
+    expect(block.text()).toContain("+70%");
+    expect(block.text()).toContain("Fire Damage to Savagery");
+    // No stats on this hit — the graft block stands alone, never merged in.
+    expect(wrapper.find("[data-testid='stat-block']").exists()).toBe(false);
   });
 
   it("should strike a flagged entry in wax without deleting it", () => {
