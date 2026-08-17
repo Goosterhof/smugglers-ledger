@@ -39,14 +39,14 @@ const { status, editionVersion, crossingPct, visible, takeDelivery, standPat } =
         </p>
         <div class="flex items-baseline justify-end gap-[20px]">
           <button
-            class="sl-chrome-label text-sl-ink-soft hover:text-sl-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-sl-lamp"
+            class="sl-chrome-label sl-chit focus-visible:outline focus-visible:outline-2 focus-visible:outline-sl-lamp"
             data-testid="stand-pat"
             @click="standPat()"
           >
             Stand pat
           </button>
           <button
-            class="sl-chrome-label text-sl-ink border-b-2 border-sl-lamp pb-[2px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-sl-lamp"
+            class="sl-chrome-label sl-chit-taken border-b-2 border-sl-lamp px-[8px] py-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-sl-lamp"
             data-testid="take-delivery"
             @click="takeDelivery()"
           >
@@ -88,7 +88,7 @@ const { status, editionVersion, crossingPct, visible, takeDelivery, standPat } =
         </p>
         <div class="flex justify-end">
           <button
-            class="sl-chrome-label text-sl-ink border-b-2 border-sl-lamp pb-[2px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-sl-lamp"
+            class="sl-chrome-label sl-chit-taken border-b-2 border-sl-lamp px-[8px] py-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-sl-lamp"
             data-testid="stand-pat"
             @click="standPat()"
           >

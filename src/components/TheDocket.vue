@@ -61,8 +61,8 @@ const hands = computed(() => [
         class="sl-column-head focus-visible:outline focus-visible:outline-2 focus-visible:outline-sl-lamp"
         :class="
           placeCut.has(place)
-            ? 'text-sl-ink border-b-2 border-sl-ink'
-            : 'text-sl-ink-soft hover:text-sl-ink'
+            ? 'text-sl-ink border-b-2 border-sl-lamp'
+            : 'text-sl-ink hover:bg-sl-clot-deep'
         "
         :aria-pressed="placeCut.has(place)"
         :data-testid="`cut-place-${place.replace(/ /g, '-')}`"
@@ -76,7 +76,12 @@ const hands = computed(() => [
 
     <select
       :value="handCut ?? ''"
-      class="sl-column-head bg-transparent border-0 border-b border-sl-rule text-sl-ink outline-none focus-visible:border-sl-ink cursor-pointer"
+      class="sl-column-head bg-transparent border-0 text-sl-ink outline-none cursor-pointer"
+      :class="
+        handCut !== null
+          ? 'border-b-2 border-sl-lamp'
+          : 'border-b border-sl-rule focus-visible:border-sl-lamp'
+      "
       aria-label="Cut by hand"
       data-testid="cut-hand"
       @change="cutHand(($event.target as HTMLSelectElement).value || null)"

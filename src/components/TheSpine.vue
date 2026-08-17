@@ -23,8 +23,8 @@ const TABS: { name: PanelName; label: string }[] = [
       class="sl-chrome-label text-left px-[12px] py-[13px] border-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-sl-lamp"
       :class="
         panel === tab.name
-          ? 'bg-sl-folio text-sl-ink border-sl-folio -ml-[26px] pl-[38px]'
-          : 'bg-sl-cellar text-sl-chalk-soft border-sl-iron hover:text-sl-chalk'
+          ? 'bg-sl-folio text-sl-ink border-sl-folio border-r-[3px] border-r-sl-lamp -ml-[26px] pl-[38px]'
+          : 'bg-sl-cellar sl-chit border-sl-iron'
       "
       :style="{ transitionDuration: 'var(--sl-dur-swap)' }"
       :aria-current="panel === tab.name ? 'page' : undefined"
