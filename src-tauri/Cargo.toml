@@ -37,7 +37,7 @@ notify = "8"
 dirs = "6"
 image = { version = "0.25", default-features = false, features = ["png"] }
 image_dds = { version = "0.7", default-features = false, features = ["ddsfile", "image"] }
-base64 = "0.22"
+base64 = "0.23"
 
 [target.'cfg(windows)'.dependencies]
 # Steam names its own install root in the registry; discovery reads it, never guesses.
