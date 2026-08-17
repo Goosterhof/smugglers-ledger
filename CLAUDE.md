@@ -107,7 +107,7 @@ Bench record (2026-08-16, this bench): 10/10 characters parse clean; transfer.gs
 
 - **No auto-update.** The installer is hand-delivered; a new version is a new `.msi`/`.nsis` handed over again.
 - **Windows-only.** Discovery reads the Windows Steam registry; no macOS/Linux path exists or is planned. (`SMUGGLERS_STEAM_ROOT` / `SMUGGLERS_GAME_ROOT` env overrides serve the WSL2 bench.)
-- **No item icons.** Items render as named text with rarity ink — `Items.arc` `.tex` decoding is Project Phase 2.
+- **Icons reach the docket and the warehouse grid, not yet the manifest.** The docket annotation (v0.8.0) and the warehouse stash cells (`StashCell` fetches `item_icon` per anchor cell, footprint derived from the PNG's natural size at 32px per game cell — the reset's `img{max-width:100%}` is overridden with `max-w-none` or multi-cell icons clamp to one cell) render the game's own icons. Equipment boxes and bags still render as named text.
 - **Four of the five `.gst` families ship unread.** `formulas`, `reagents`, `transmutes`, `potions` sit at the save root, parsed by nothing.
 - **One root at a time.** Freshest root by default with a manual switch — no merged multi-profile view.
 - **English text tables only.** The codex reads `Text_EN.arc`; a non-English install resolves nothing until a localization pass.
