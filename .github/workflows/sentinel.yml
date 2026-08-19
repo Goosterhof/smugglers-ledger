@@ -85,9 +85,15 @@ jobs:
         # it waits forever. That is not a hypothetical — this step hung for
         # 15 minutes on PR #27 and #28, and for SIX HOURS on the v0.11.0
         # release run before someone cancelled it. Retries make the common
-        # flake self-heal; the step timeout turns the uncommon one into a
-        # fast red instead of a runner burning the afternoon.
-        timeout-minutes: 8
+        # flake self-heal; the timeout turns the uncommon one into a fast red
+        # instead of a runner burning the afternoon.
+        #
+        # 15, not 8: the step took 5m09s on a run that SUCCEEDED the same day
+        # (job 96018269109), against a ~90s baseline. A ceiling has to clear
+        # the worst honest run by a wide margin or it just manufactures reds
+        # of its own — and 15 minutes still turns a six-hour hang into a
+        # twenty-fourth of one.
+        timeout-minutes: 15
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
