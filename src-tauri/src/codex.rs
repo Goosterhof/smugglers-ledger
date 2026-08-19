@@ -161,7 +161,13 @@ pub fn database_identity(install_root: &Path) -> Result<String, LedgerError> {
             hasher.update(&tail);
         }
     }
-    Ok(format!("{:x}", hasher.finalize()))
+    // sha2 0.11 returns a `hybrid_array::Array`, which no longer implements
+    // LowerHex — hex the digest by hand, which reads the same on either.
+    Ok(hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect())
 }
 
 // ---------------------------------------------------------------------------
