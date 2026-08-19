@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The tab spine: three printed tabs down the sheet's stage-right edge — the
+// The tab spine: four printed tabs down the sheet's stage-right edge — the
 // Prompt Book's binder-thumb-tab shape, reused deliberately (#00012). The
 // active tab dog-ears INTO the page: it takes the folio's own cream and ink
 // and loses its left border, continuous with the sheet.
@@ -12,6 +12,7 @@ const TABS: { name: PanelName; label: string }[] = [
   { name: "hoard", label: "The Hoard" },
   { name: "manifest", label: "The Manifest" },
   { name: "warehouse", label: "The Warehouse" },
+  { name: "trades", label: "The Trades" },
 ];
 </script>
 

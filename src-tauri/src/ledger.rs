@@ -558,6 +558,137 @@ pub fn search_hoard(hoard: &Hoard, query: &str) -> Vec<LedgerHit> {
 }
 
 // ---------------------------------------------------------------------------
+// THE TRADES — one hand's build, laid over the game's own trees
+// ---------------------------------------------------------------------------
+
+/// Ranks on one record: what the points bought, or what the gear grafts.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillRank {
+    pub record: String,
+    pub level: i32,
+}
+
+/// One hand as THE TRADES draws it: what the skill points bought, and what
+/// the gear on their back adds on top — the same sum the game shows in the
+/// skill panel, from the same two sources.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HandBuild {
+    pub hand: String,
+    pub level: u32,
+    /// The save's own class tag (`tagSkillClassName0106`) — which masteries
+    /// this hand carries, in the game's own notation.
+    pub class_tag: String,
+    /// Bought ranks, by skill record. Mastery bars are in here too, keyed by
+    /// their own `_classtraining_*` record — that is the bar's level.
+    pub allocated: Vec<SkillRank>,
+    /// Ranks the EQUIPPED gear adds to one named skill.
+    pub granted: Vec<SkillRank>,
+    /// Ranks the gear adds to every skill in one mastery, keyed by that
+    /// mastery's bar record.
+    pub mastery_granted: Vec<SkillRank>,
+    /// Ranks the gear adds to every skill the hand has, full stop.
+    pub all_granted: i32,
+}
+
+/// Fold a list of ranks so one record appears once, summed — two rings that
+/// each grant "+1 to Cadence" grant two.
+fn fold_ranks(ranks: Vec<SkillRank>) -> Vec<SkillRank> {
+    let mut totals: std::collections::HashMap<String, i32> = std::collections::HashMap::new();
+    for rank in ranks {
+        *totals.entry(rank.record).or_default() += rank.level;
+    }
+    let mut folded: Vec<SkillRank> = totals
+        .into_iter()
+        .map(|(record, level)| SkillRank { record, level })
+        .collect();
+    folded.sort_by(|a, b| a.record.cmp(&b.record));
+    folded
+}
+
+/// Every grant the gear this hand is WEARING carries — the twelve equipment
+/// slots plus the weapon set the character actually has drawn (`use_alternate`
+/// is the game's own answer to which). What sits in a bag grants nothing, the
+/// same way it grants nothing in the game.
+fn worn_grants(hoard: &Hoard, m: &Manifest) -> (Vec<SkillRank>, Vec<SkillRank>, i32) {
+    use crate::codex::GrantScope;
+    let drawn = if m.inventory.use_alternate {
+        &m.inventory.weapon_set_2
+    } else {
+        &m.inventory.weapon_set_1
+    };
+    let (mut skill, mut mastery, mut all) = (Vec::new(), Vec::new(), 0);
+    for slot in m.inventory.equipment.iter().chain(drawn) {
+        // An item's grafts are its base record's plus every affix, component,
+        // and augment fitted to it — the same five records the stat lines sum.
+        for record in [
+            &slot.item.base_name,
+            &slot.item.prefix_name,
+            &slot.item.suffix_name,
+            &slot.item.component_name,
+            &slot.item.augment_name,
+        ] {
+            let Some(resolved) = hoard.resolved.get(record) else {
+                continue;
+            };
+            for grant in &resolved.grants {
+                let rank = SkillRank {
+                    record: grant.record.clone(),
+                    level: grant.level,
+                };
+                match grant.scope {
+                    GrantScope::Skill => skill.push(rank),
+                    GrantScope::Mastery => mastery.push(rank),
+                    GrantScope::All => all += grant.level,
+                }
+            }
+        }
+    }
+    (fold_ranks(skill), fold_ranks(mastery), all)
+}
+
+/// Every hand's build. A flagged hand still appears — with nothing allocated,
+/// the same way it appears in THE HANDS rail with nothing in its manifest.
+pub fn hand_builds(hoard: &Hoard) -> Vec<HandBuild> {
+    hoard
+        .hands
+        .iter()
+        .map(|hand| {
+            let (granted, mastery_granted, all_granted) = hand
+                .manifest
+                .as_ref()
+                .map(|m| worn_grants(hoard, m))
+                .unwrap_or_default();
+            HandBuild {
+                hand: hand.name.clone(),
+                level: hand.level,
+                class_tag: hand.class_tag.clone(),
+                allocated: hand
+                    .manifest
+                    .as_ref()
+                    .map(|m| {
+                        m.skills
+                            .iter()
+                            // The devotion stars are the other tree — held for
+                            // their own log, and never a mastery's ranks.
+                            .filter(|s| s.devotion_level == 0 && s.level > 0)
+                            .map(|s| SkillRank {
+                                record: s.record.clone(),
+                                level: s.level as i32,
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+                granted,
+                mastery_granted,
+                all_granted,
+            }
+        })
+        .collect()
+}
+
+// ---------------------------------------------------------------------------
 // Managed state + commands
 // ---------------------------------------------------------------------------
 
@@ -740,13 +871,75 @@ pub fn item_icon(
     icons: tauri::State<'_, crate::icons::IconState>,
     bitmap: String,
 ) -> Option<String> {
+    serve_icon(&state, &icons, crate::icons::Cabinet::Items, &bitmap)
+}
+
+/// The same service for a skill's own icon — the panel's icons live in the
+/// install's UI.arc, not Items.arc, and the cabinet knows the difference.
+#[tauri::command]
+pub fn skill_icon(
+    state: tauri::State<'_, LedgerState>,
+    icons: tauri::State<'_, crate::icons::IconState>,
+    bitmap: String,
+) -> Option<String> {
+    serve_icon(&state, &icons, crate::icons::Cabinet::Ui, &bitmap)
+}
+
+fn serve_icon(
+    state: &tauri::State<'_, LedgerState>,
+    icons: &tauri::State<'_, crate::icons::IconState>,
+    cabinet: crate::icons::Cabinet,
+    bitmap: &str,
+) -> Option<String> {
     let install = state.inner.lock().ok()?.install_root.clone()?;
-    let png = icons.icon_png(&install, &bitmap)?;
+    let png = icons.icon_png(&install, cabinet, bitmap)?;
     use base64::Engine;
     Some(format!(
         "data:image/png;base64,{}",
         base64::engine::general_purpose::STANDARD.encode(png)
     ))
+}
+
+/// THE TRADES — the ten mastery trees from the install, and every hand's
+/// build laid over them. Read once per process and held: the trees do not
+/// change until the game is patched, and the builds re-read with the hoard.
+#[tauri::command]
+pub fn list_trades(
+    state: tauri::State<'_, LedgerState>,
+    trades: tauri::State<'_, TradesState>,
+) -> Result<TradesSheet, LedgerError> {
+    let install = {
+        let inner = state.inner.lock().expect("ledger state poisoned");
+        inner.install_root.clone()
+    };
+    let held = trades.inner.lock().expect("trades state poisoned").clone();
+    let trees = match held {
+        Some(trees) => trees,
+        None => {
+            let install = install.ok_or_else(|| LedgerError::CodexShelfMissing {
+                detail: "no game install to read the trades from".into(),
+            })?;
+            let fresh = Codex::open(&install, &codex_cache_dir())?.trades()?;
+            *trades.inner.lock().expect("trades state poisoned") = Some(fresh.clone());
+            fresh
+        }
+    };
+    let inner = state.inner.lock().expect("ledger state poisoned");
+    let builds = inner.hoard.as_ref().map(hand_builds).unwrap_or_default();
+    Ok(TradesSheet { trees, builds })
+}
+
+/// The trees, read once per process (they change only when the game does).
+#[derive(Default)]
+pub struct TradesState {
+    pub inner: Mutex<Option<Vec<crate::trades::MasteryTree>>>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TradesSheet {
+    pub trees: Vec<crate::trades::MasteryTree>,
+    pub builds: Vec<HandBuild>,
 }
 
 // The root switch lives in lib.rs (`switch_root`): it must re-arm the watch
