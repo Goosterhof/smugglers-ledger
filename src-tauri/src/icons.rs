@@ -1,6 +1,7 @@
-//! Item icons — the `bitmap` a base record names, extracted from the user's
-//! own `resources/Items.arc` and decoded from Grim Dawn's `TEX`-wrapped DDS to
-//! an RGBA PNG the webview can show.
+//! The icons — the `bitmap` a record names, extracted from the user's own
+//! archives and decoded from Grim Dawn's `TEX`-wrapped DDS to an RGBA PNG the
+//! webview can show. Two cabinets: item icons come out of `Items.arc`, the
+//! skill panel's icons out of `UI.arc` (see [`Cabinet`]).
 //!
 //! Same RD-3 legal floor as the codex: read from the licensed install at
 //! runtime, decoded in memory, cached to the app's own data dir — never
@@ -134,6 +135,9 @@ fn decode_tex_to_png(dds_bytes: &[u8]) -> Result<Vec<u8>, LedgerError> {
     if blob.len() >= 4 && &blob[..3] == b"DDS" {
         blob[3] = b' ';
     }
+    if let Some(png) = decode_flat_surface(&blob) {
+        return Ok(png);
+    }
     let dds = image_dds::ddsfile::Dds::read(blob.as_slice()).map_err(|e| {
         LedgerError::CodexShelfMissing {
             detail: format!("icon DDS parse failed: {e}"),
@@ -150,16 +154,69 @@ fn decode_tex_to_png(dds_bytes: &[u8]) -> Result<Vec<u8>, LedgerError> {
     Ok(png)
 }
 
+/// The skill-panel icons are not block-compressed. GD writes them as a plain
+/// surface with an EMPTY pixel format — no fourcc, no channel masks — which
+/// `image_dds` refuses, rightly: there is no format there to read. The header
+/// still states the surface size and the bit depth, and the payload behind it
+/// is exactly `width × height × depth/8` bytes in D3D's channel order. Decode
+/// that directly, or hand the blob back to the BCn path untouched.
+///
+/// Both depths are in the wild and BOTH must be read: Cadence's icon is 32-bit
+/// BGRA, Blitz's — one row down the same panel — is 24-bit BGR with no alpha
+/// channel at all. Reading only the first leaves a lettered blank in the tree.
+fn decode_flat_surface(blob: &[u8]) -> Option<Vec<u8>> {
+    /// 4 bytes of magic + the 124-byte header.
+    const HEADER_LEN: usize = 128;
+    /// Where the pixel-format block sits inside that header.
+    const PIXEL_FORMAT: usize = 76;
+    let word = |at: usize| -> Option<u32> {
+        blob.get(at..at + 4)
+            .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    };
+    if word(PIXEL_FORMAT + 8)? != 0 {
+        return None; // a fourcc means a real, compressed format — not ours
+    }
+    let depth = match word(PIXEL_FORMAT + 12)? {
+        32 => 4usize,
+        24 => 3usize,
+        _ => return None,
+    };
+    let height = word(12)? as usize;
+    let width = word(16)? as usize;
+    let pixels = blob.get(HEADER_LEN..HEADER_LEN + width * height * depth)?;
+    // BGR(A) on disk (D3D's A8R8G8B8 / R8G8B8 order), RGBA in a PNG. A surface
+    // with no alpha channel is opaque, which is what a 24-bit icon means.
+    let mut rgba = Vec::with_capacity(width * height * 4);
+    for pixel in pixels.chunks_exact(depth) {
+        rgba.extend_from_slice(&[pixel[2], pixel[1], pixel[0]]);
+        rgba.push(if depth == 4 { pixel[3] } else { 0xFF });
+    }
+    let image: image::RgbaImage = image::ImageBuffer::from_raw(width as u32, height as u32, rgba)?;
+    let mut png: Vec<u8> = Vec::new();
+    image
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .ok()?;
+    Some(png)
+}
+
 // ---------------------------------------------------------------------------
-// The icon cabinet — managed state: lazily-opened Items.arc shelves + a decoded
-// PNG cache. Most bitmaps live in the base Items.arc; expansions open only if a
-// bitmap isn't found in the shelves already loaded.
+// The icon cabinets — managed state: lazily-opened archive shelves + a decoded
+// PNG cache, one set per cabinet. Most bitmaps live in the base archive;
+// expansions open only if a bitmap isn't found in the shelves already loaded.
 // ---------------------------------------------------------------------------
 
 use std::path::Path;
 use std::sync::Mutex;
 
-/// The Items.arc shelves inside a Grim Dawn install, base first.
+/// Which archive family a bitmap comes out of.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Cabinet {
+    /// `Items.arc` — the item icons the docket shows.
+    Items,
+    /// `UI.arc` — the skill panel's own icons, for THE TRADES.
+    Ui,
+}
+
 const ITEMS_ARC_SHELVES: [&str; 4] = [
     "resources/Items.arc",
     "gdx1/resources/Items.arc",
@@ -167,14 +224,41 @@ const ITEMS_ARC_SHELVES: [&str; 4] = [
     "gdx3/resources/Items.arc",
 ];
 
+const UI_ARC_SHELVES: [&str; 4] = [
+    "resources/UI.arc",
+    "gdx1/resources/UI.arc",
+    "gdx2/resources/UI.arc",
+    "gdx3/resources/UI.arc",
+];
+
+impl Cabinet {
+    fn shelves(self) -> &'static [&'static str] {
+        match self {
+            Cabinet::Items => &ITEMS_ARC_SHELVES,
+            Cabinet::Ui => &UI_ARC_SHELVES,
+        }
+    }
+
+    /// The archive's own key for a bitmap the records name. A skill record
+    /// spells its icon `ui/skills/icons/class01/skillicon_cadence1_up.tex`;
+    /// UI.arc files the very same texture WITHOUT that leading `ui/`. Getting
+    /// this wrong reads as "the install has no such icon", which is a lie.
+    fn key(self, bitmap: &str) -> String {
+        match self {
+            Cabinet::Items => bitmap.to_string(),
+            Cabinet::Ui => bitmap.strip_prefix("ui/").unwrap_or(bitmap).to_string(),
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct IconState {
-    inner: Mutex<IconInner>,
+    inner: Mutex<std::collections::HashMap<Cabinet, IconInner>>,
 }
 
 #[derive(Default)]
 struct IconInner {
-    /// Shelves opened so far (index into ITEMS_ARC_SHELVES for the next open).
+    /// Shelves opened so far (index into the cabinet's list for the next open).
     shelves: Vec<IconShelf>,
     opened: usize,
     /// bitmap → decoded PNG (`None` = searched every shelf, genuinely absent).
@@ -182,26 +266,29 @@ struct IconInner {
 }
 
 impl IconState {
-    /// The decoded PNG for one bitmap, or `None` if no shelf holds it. Opens
-    /// more Items.arc shelves on demand; caches every answer (hit and miss).
-    pub fn icon_png(&self, install_root: &Path, bitmap: &str) -> Option<Vec<u8>> {
-        let mut inner = self.inner.lock().ok()?;
-        if let Some(cached) = inner.cache.get(bitmap) {
+    /// The decoded PNG for one bitmap, or `None` if no shelf in that cabinet
+    /// holds it. Opens more shelves on demand; caches every answer (hit and
+    /// miss) so a missing icon is asked for exactly once.
+    pub fn icon_png(&self, install_root: &Path, cabinet: Cabinet, bitmap: &str) -> Option<Vec<u8>> {
+        let mut cabinets = self.inner.lock().ok()?;
+        let inner = cabinets.entry(cabinet).or_default();
+        let key = cabinet.key(bitmap);
+        if let Some(cached) = inner.cache.get(&key) {
             return cached.clone();
         }
         // Search already-open shelves, then open more until found or exhausted.
         loop {
             for shelf in &inner.shelves {
-                if let Ok(Some(png)) = shelf.icon_png(bitmap) {
-                    inner.cache.insert(bitmap.to_string(), Some(png.clone()));
+                if let Ok(Some(png)) = shelf.icon_png(&key) {
+                    inner.cache.insert(key, Some(png.clone()));
                     return Some(png);
                 }
             }
-            if inner.opened >= ITEMS_ARC_SHELVES.len() {
-                inner.cache.insert(bitmap.to_string(), None);
+            if inner.opened >= cabinet.shelves().len() {
+                inner.cache.insert(key, None);
                 return None;
             }
-            let next = install_root.join(ITEMS_ARC_SHELVES[inner.opened]);
+            let next = install_root.join(cabinet.shelves()[inner.opened]);
             inner.opened += 1;
             if let Ok(data) = std::fs::read(&next) {
                 if let Ok(shelf) = IconShelf::open(data) {

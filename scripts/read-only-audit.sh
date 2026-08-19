@@ -28,6 +28,9 @@ cd "$(dirname "$0")/.."
 
 SWEPT=(
   src-tauri/src/discovery.rs
+  # trades.rs opens nothing — it reads shelves the codex already holds. Swept
+  # anyway: the sweep is free here and keeps it that way.
+  src-tauri/src/trades.rs
   src-tauri/src/manifest.rs
   src-tauri/src/warehouse.rs
   src-tauri/src/ledger.rs
