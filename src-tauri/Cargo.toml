@@ -28,16 +28,16 @@ log = "0.4"
 
 # The codex's shelves: database.arz records are LZ4 block-compressed,
 # Text_EN.arc localization parts likewise. Pure Rust, no C toolchain.
-lz4_flex = { version = "0.11", default-features = false, features = ["safe-decode"] }
+lz4_flex = { version = "0.14", default-features = false, features = ["safe-decode", "alloc"] }
 # Cache key: the install's database file identity. SHA-256 of size+mtime+head bytes.
-sha2 = "0.10"
+sha2 = "0.11"
 # The watch: save-file change events, debounced in watch.rs.
 notify = "8"
 # Documents/ and app-data paths for discovery and the codex cache.
 dirs = "6"
 image = { version = "0.25", default-features = false, features = ["png"] }
 image_dds = { version = "0.7", default-features = false, features = ["ddsfile", "image"] }
-base64 = "0.22"
+base64 = "0.23"
 
 [target.'cfg(windows)'.dependencies]
 # Steam names its own install root in the registry; discovery reads it, never guesses.
@@ -50,7 +50,7 @@ tempfile = "3"
 filetime = "0.2"
 # The codex-cache tests forge a minimal valid .arz/.arc pair, which needs the
 # compression direction the app itself never uses.
-lz4_flex = { version = "0.11", default-features = false, features = ["safe-encode", "safe-decode"] }
+lz4_flex = { version = "0.14", default-features = false, features = ["safe-encode", "safe-decode", "alloc"] }
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
