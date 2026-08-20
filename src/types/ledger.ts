@@ -127,4 +127,4 @@ export const EQUIPMENT_SLOT_NAMES = [
   "MEDAL",
 ] as const;
 
-export type PanelName = "hoard" | "manifest" | "warehouse";
+export type PanelName = "hoard" | "manifest" | "warehouse" | "trades";

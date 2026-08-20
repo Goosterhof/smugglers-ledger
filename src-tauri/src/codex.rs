@@ -44,6 +44,10 @@ const TEXT_SHELVES: [&str; 4] = [
     "gdx3/resources/Text_EN.arc",
 ];
 const CACHE_FILE: &str = "codex-cache.json";
+const TRADES_CACHE_FILE: &str = "trades-cache.json";
+/// Bump when [`crate::trades::MasteryTree`] changes shape — same contract as
+/// [`CODEX_SCHEMA`], separate file, separate history. 1 = the first trees.
+const TRADES_SCHEMA: u32 = 1;
 /// Identity sampling width: leading + trailing bytes of each database file.
 const IDENTITY_SAMPLE: usize = 64 * 1024;
 
@@ -85,13 +89,51 @@ pub struct ResolvedRecord {
     /// Savagery"). Searchable — the skill search matches on these labels.
     #[serde(default)]
     pub skills: Vec<StatLine>,
+    /// The same grafts kept MACHINE-readable: which skill record the ranks
+    /// land on, and how many. `skills` above is what a reader reads; this is
+    /// what THE TRADES adds to the right node of the tree.
+    #[serde(default)]
+    pub grants: Vec<SkillGrant>,
+}
+
+/// What a graft lands on: one named skill, every skill in one mastery, or
+/// every skill the character has — the game's own three shapes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GrantScope {
+    Skill,
+    Mastery,
+    All,
+}
+
+/// One "+N to <something>" graft, structured.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillGrant {
+    /// The record the ranks land on — a skill record for `Skill`, the
+    /// mastery's own `_classtraining_*` record for `Mastery`, empty for `All`.
+    pub record: String,
+    pub level: i32,
+    pub scope: GrantScope,
 }
 
 /// Bump when [`ResolvedRecord`] gains fields an older cache cannot carry —
 /// a schema mismatch discards the cache exactly the way a game patch does,
 /// so no entry is ever served missing its newer fields. History: 2 = the
-/// skill grafts (`skills`).
-const CODEX_SCHEMA: u32 = 2;
+/// skill grafts (`skills`); 3 = the machine-readable grants (`grants`), which
+/// THE TRADES reads to graft gear ranks onto the tree.
+const CODEX_SCHEMA: u32 = 3;
+
+/// THE TRADES' own cache file — the ten trees, keyed to the same database
+/// identity the item cache uses.
+#[derive(Debug, Serialize, Deserialize, Default)]
+struct TradesCache {
+    #[serde(default)]
+    schema: u32,
+    db_hash: String,
+    #[serde(default)]
+    trees: Vec<crate::trades::MasteryTree>,
+}
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 struct CodexCache {
@@ -263,7 +305,7 @@ fn parse_text_arc(data: &[u8], table: &mut HashMap<String, String>) -> Result<()
 
 /// One loaded `.arz` database: string table + record directory, with record
 /// bodies decompressed on demand. Per gd-edit's `arz.clj`.
-struct ArzShelf {
+pub(crate) struct ArzShelf {
     data: Vec<u8>,
     strings: Vec<String>,
     /// record path → (body offset, compressed size, decompressed size)
@@ -319,69 +361,173 @@ impl ArzShelf {
         })
     }
 
-    /// Decompress one record and pull only the fields the Ledger needs.
-    fn record_essentials(
-        &self,
-        record_path: &str,
-    ) -> Result<Option<RecordEssentials>, LedgerError> {
+    /// One record's decompressed body, or `None` when this shelf has no such
+    /// record. Record bodies sit at `offset + 24` — past the file header.
+    fn record_body(&self, record_path: &str) -> Result<Option<Vec<u8>>, LedgerError> {
         let Some(&(offset, compressed, decompressed)) = self.directory.get(record_path) else {
             return Ok(None);
         };
-        // Record bodies sit at offset + 24 (past the file header).
         let raw = slice(&self.data, offset + 24, compressed)?;
-        let body = lz4_flex::block::decompress(raw, decompressed).map_err(|e| {
-            LedgerError::CodexShelfMissing {
+        lz4_flex::block::decompress(raw, decompressed)
+            .map(Some)
+            .map_err(|e| LedgerError::CodexShelfMissing {
                 detail: format!("record {record_path} failed to decompress: {e}"),
-            }
-        })?;
-        let mut essentials = RecordEssentials::default();
+            })
+    }
+
+    /// Walk a record body field by field, handing the visitor the field's
+    /// type tag, its name, and its raw value words. The arz's four types —
+    /// 0 int32, 1 float-as-bits, 2 string-table index, 3 bool — are all
+    /// stored as a run of `u32`s, so the reading is one loop and the
+    /// interpreting belongs to the caller.
+    fn walk_fields(&self, body: &[u8], mut visit: impl FnMut(u16, &str, &[u32])) {
         let mut pos = 0usize;
+        let mut values: Vec<u32> = Vec::new();
         while pos + 8 <= body.len() {
             let field_type = u16::from_le_bytes([body[pos], body[pos + 1]]);
             let count = u16::from_le_bytes([body[pos + 2], body[pos + 3]]) as usize;
-            let name_idx = le_u32(&body, pos + 4)? as usize;
+            let Ok(name_idx) = le_u32(body, pos + 4) else {
+                break;
+            };
             pos += 8;
             let values_end = pos + count * 4;
             if values_end > body.len() {
                 break;
             }
-            if field_type == 2 && count >= 1 {
-                if let Some(field_name) = self.strings.get(name_idx) {
-                    let value_idx = le_u32(&body, pos)? as usize;
-                    if let Some(value) = self.strings.get(value_idx) {
-                        if let Some(target) = essentials.slot_for(field_name) {
-                            *target = Some(value.clone());
-                        } else if is_skill_ref_property(field_name) && !value.is_empty() {
-                            essentials
-                                .skill_refs
-                                .push((field_name.clone(), value.clone()));
-                        }
+            if let Some(name) = self.strings.get(name_idx as usize) {
+                values.clear();
+                for i in 0..count {
+                    match le_u32(body, pos + i * 4) {
+                        Ok(word) => values.push(word),
+                        Err(_) => break,
                     }
                 }
-            } else if (field_type == 0 || field_type == 1) && count == 1 {
+                visit(field_type, name, &values);
+            }
+            pos = values_end;
+        }
+    }
+
+    /// Decompress one record and pull only the fields the item resolve needs.
+    fn record_essentials(
+        &self,
+        record_path: &str,
+    ) -> Result<Option<RecordEssentials>, LedgerError> {
+        let Some(body) = self.record_body(record_path)? else {
+            return Ok(None);
+        };
+        let mut essentials = RecordEssentials::default();
+        self.walk_fields(&body, |field_type, field_name, values| {
+            let Some(&first) = values.first() else { return };
+            if field_type == 2 {
+                let Some(value) = self.strings.get(first as usize) else {
+                    return;
+                };
+                if let Some(target) = essentials.slot_for(field_name) {
+                    *target = Some(value.clone());
+                } else if is_skill_ref_property(field_name) && !value.is_empty() {
+                    essentials
+                        .skill_refs
+                        .push((field_name.to_string(), value.clone()));
+                }
+            } else if (field_type == 0 || field_type == 1) && values.len() == 1 {
                 // t1 = a float-as-bits scalar (the stat magnitudes), t0 = an
                 // int32 (the skill grant levels). Capture the value-bearing,
                 // non-zero stat properties; the formatter turns them into
                 // readable lines. XOR/Global flags stay 0 and are dropped by
                 // the non-zero filter and the formatter's allowlist.
-                if let Some(field_name) = self.strings.get(name_idx) {
-                    let raw = le_u32(&body, pos)?;
-                    let value = if field_type == 1 {
-                        f32::from_bits(raw)
-                    } else {
-                        raw as i32 as f32
-                    };
-                    if field_type == 1 && value != 0.0 && is_stat_property(field_name) {
-                        essentials.stat_fields.push((field_name.clone(), value));
-                    }
-                    if value != 0.0 && is_skill_level_property(field_name) {
-                        essentials.skill_levels.push((field_name.clone(), value));
-                    }
+                let value = if field_type == 1 {
+                    f32::from_bits(first)
+                } else {
+                    first as i32 as f32
+                };
+                if field_type == 1 && value != 0.0 && is_stat_property(field_name) {
+                    essentials.stat_fields.push((field_name.to_string(), value));
+                }
+                if value != 0.0 && is_skill_level_property(field_name) {
+                    essentials
+                        .skill_levels
+                        .push((field_name.to_string(), value));
                 }
             }
-            pos = values_end;
-        }
+        });
         Ok(Some(essentials))
+    }
+
+    /// Every field the `keep` predicate asks for, typed and whole. The trades
+    /// reader needs what the item resolve never asks for: string ARRAYS
+    /// (`tabSkillButtons`, `skillConnectionOn`) and bools (`isCircular`).
+    pub(crate) fn record_fields(
+        &self,
+        record_path: &str,
+        keep: &dyn Fn(&str) -> bool,
+    ) -> Result<Option<HashMap<String, Field>>, LedgerError> {
+        let Some(body) = self.record_body(record_path)? else {
+            return Ok(None);
+        };
+        let mut out: HashMap<String, Field> = HashMap::new();
+        self.walk_fields(&body, |field_type, field_name, values| {
+            if !keep(field_name) {
+                return;
+            }
+            let field = match field_type {
+                2 => Field::Text(
+                    values
+                        .iter()
+                        .filter_map(|i| self.strings.get(*i as usize))
+                        .cloned()
+                        .collect(),
+                ),
+                1 => Field::Floats(values.iter().map(|w| f32::from_bits(*w)).collect()),
+                3 => Field::Bools(values.iter().map(|w| *w != 0).collect()),
+                _ => Field::Ints(values.iter().map(|w| *w as i32).collect()),
+            };
+            out.insert(field_name.to_string(), field);
+        });
+        Ok(Some(out))
+    }
+}
+
+/// One record field as the arz stores it — a typed run of values.
+#[derive(Debug, Clone)]
+pub(crate) enum Field {
+    Text(Vec<String>),
+    Ints(Vec<i32>),
+    Floats(Vec<f32>),
+    Bools(Vec<bool>),
+}
+
+impl Field {
+    /// The first string, for the single-valued string fields.
+    pub(crate) fn text(&self) -> Option<&str> {
+        match self {
+            Field::Text(values) => values.first().map(String::as_str),
+            _ => None,
+        }
+    }
+
+    /// Every string — `tabSkillButtons` and `skillConnectionOn` are arrays.
+    pub(crate) fn texts(&self) -> &[String] {
+        match self {
+            Field::Text(values) => values,
+            _ => &[],
+        }
+    }
+
+    /// The first value as an integer, whatever type it arrived as.
+    pub(crate) fn int(&self) -> Option<i32> {
+        match self {
+            Field::Ints(values) => values.first().copied(),
+            Field::Floats(values) => values.first().map(|v| *v as i32),
+            Field::Bools(values) => values.first().map(|v| i32::from(*v)),
+            Field::Text(_) => None,
+        }
+    }
+
+    /// Truthiness — the arz writes `isCircular` as a bool, but a record that
+    /// spells it as an int must not read as false.
+    pub(crate) fn truthy(&self) -> bool {
+        self.int().is_some_and(|v| v != 0)
     }
 }
 
@@ -606,6 +752,52 @@ fn skill_lines(
         }
     }
     out
+}
+
+/// The same grafts [`skill_lines`] renders for a reader, kept structured for
+/// THE TRADES: the record the ranks land on, how many, and what they land on.
+/// Only the ADDITIVE grafts count here — the Monster Infrequent modifier
+/// pairs change how a skill behaves without granting a rank, so they stay in
+/// the readable lines and out of the tree's arithmetic.
+fn skill_grants(essentials: &RecordEssentials) -> Vec<SkillGrant> {
+    let level = |prefix: &str, i: u32| -> i32 {
+        essentials
+            .skill_levels
+            .iter()
+            .find(|(field, _)| field_index(field, prefix) == Some(i))
+            .map(|(_, v)| *v as i32)
+            // A grant whose level field never surfaced still grants — the
+            // game's floor is +1, the same default the readable lines take.
+            .unwrap_or(1)
+    };
+    let mut grants = Vec::new();
+    for (field, record) in &essentials.skill_refs {
+        if let Some(i) = field_index(field, "augmentSkillName") {
+            grants.push(SkillGrant {
+                record: record.clone(),
+                level: level("augmentSkillLevel", i),
+                scope: GrantScope::Skill,
+            });
+        } else if let Some(i) = field_index(field, "augmentMasteryName") {
+            grants.push(SkillGrant {
+                record: record.clone(),
+                level: level("augmentMasteryLevel", i),
+                scope: GrantScope::Mastery,
+            });
+        }
+    }
+    if let Some((_, v)) = essentials
+        .skill_levels
+        .iter()
+        .find(|(field, _)| field == "augmentAllLevel")
+    {
+        grants.push(SkillGrant {
+            record: String::new(),
+            level: *v as i32,
+            scope: GrantScope::All,
+        });
+    }
+    grants
 }
 
 /// The elements, in the game's own read order, with their display names
@@ -902,6 +1094,7 @@ impl Codex {
                         resolved.tier = classification_tier(essentials.classification.as_deref());
                         resolved.skills =
                             skill_lines(&essentials, shelves, localization, &mut skill_memo);
+                        resolved.grants = skill_grants(&essentials);
                         resolved.classification = essentials.classification;
                         resolved.slot_class = essentials.class;
                         resolved.stats = format_stats(&essentials.stat_fields);
@@ -923,6 +1116,51 @@ impl Codex {
                 )
             })
             .collect())
+    }
+
+    /// THE TRADES — the ten mastery trees, read from the install's own UI and
+    /// skill records. Cached in its own file under its own schema: a trades
+    /// read never disturbs the item cache, and a game patch (a changed
+    /// `db_hash`) invalidates both the same way.
+    pub fn trades(&mut self) -> Result<Vec<crate::trades::MasteryTree>, LedgerError> {
+        if let Some(cached) = self.read_trades_cache() {
+            return Ok(cached);
+        }
+        self.open_shelves()?;
+        let shelves = self.shelves.as_ref().expect("just opened");
+        let localization = self.localization.as_ref().expect("just opened");
+        let trees = crate::trades::read_trades(shelves, localization);
+        // A cache that cannot be written is a slower next launch, never a
+        // failed read — the trees in hand are already the answer.
+        let _ = self.write_trades_cache(&trees);
+        Ok(trees)
+    }
+
+    fn read_trades_cache(&self) -> Option<Vec<crate::trades::MasteryTree>> {
+        let path = self.cache_dir.join(TRADES_CACHE_FILE);
+        shelf_guard(&path, &self.install_root, &self.cache_dir).ok()?;
+        let bytes = std::fs::read(&path).ok()?;
+        let cached: TradesCache = serde_json::from_slice(&bytes).ok()?;
+        (cached.schema == TRADES_SCHEMA
+            && cached.db_hash == self.cache.db_hash
+            && !cached.trees.is_empty())
+        .then_some(cached.trees)
+    }
+
+    fn write_trades_cache(&self, trees: &[crate::trades::MasteryTree]) -> Result<(), LedgerError> {
+        std::fs::create_dir_all(&self.cache_dir)
+            .map_err(|e| LedgerError::unreadable(&self.cache_dir, &e))?;
+        let path = self.cache_dir.join(TRADES_CACHE_FILE);
+        shelf_guard(&path, &self.install_root, &self.cache_dir)?;
+        let payload = TradesCache {
+            schema: TRADES_SCHEMA,
+            db_hash: self.cache.db_hash.clone(),
+            trees: trees.to_vec(),
+        };
+        let bytes = serde_json::to_vec(&payload).map_err(|e| LedgerError::CodexShelfMissing {
+            detail: format!("trades cache serialization failed: {e}"),
+        })?;
+        std::fs::write(&path, bytes).map_err(|e| LedgerError::unreadable(&path, &e))
     }
 
     fn open_shelves(&mut self) -> Result<(), LedgerError> {

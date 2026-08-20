@@ -88,6 +88,26 @@ pub struct Manifest {
     pub bio: Bio,
     pub inventory: Inventory,
     pub personal_stash: Vec<StashTab>,
+    /// What this hand has actually learned — the skills block, read past the
+    /// stash. Empty is a legitimate answer (see [`read_skills`]), never a
+    /// reason to flag the save.
+    pub skills: Vec<AllocatedSkill>,
+}
+
+/// One skill the save says this character bought ranks in. The level is what
+/// the skill points paid for — the gear's "+N to" grafts are added on top by
+/// THE TRADES, exactly the way the game adds them.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AllocatedSkill {
+    /// The skill record — the same string the trades panel keys its nodes on,
+    /// and `_classtraining_classNN.dbr` for a mastery bar's own level.
+    pub record: String,
+    pub level: u32,
+    /// Non-zero on the devotion constellation skills — the second tree, held
+    /// for its own log. Carried so the panel can tell them apart from a
+    /// mastery's skills instead of guessing from the record path.
+    pub devotion_level: u32,
 }
 
 fn expect_block(cipher: &mut Cipher, want: u32) -> Result<usize, LedgerError> {
@@ -140,6 +160,11 @@ pub fn parse_player(data: &[u8]) -> Result<Manifest, LedgerError> {
     let bio = parse_bio(&mut cipher)?;
     let inventory = parse_inventory(&mut cipher)?;
     let personal_stash = parse_personal_stash(&mut cipher)?;
+    // Best-effort by design: the hoard is already read by this point, and a
+    // tree the Ledger could not read must never cost a hand its manifest —
+    // the 1C ruling ("one bad save never sinks the fleet"), applied one level
+    // down to one block.
+    let skills = read_skills(&mut cipher).unwrap_or_default();
 
     Ok(Manifest {
         header,
@@ -148,7 +173,74 @@ pub fn parse_player(data: &[u8]) -> Result<Manifest, LedgerError> {
         bio,
         inventory,
         personal_stash,
+        skills,
     })
+}
+
+/// The block the allocated skills live in, and how far to look for it. The
+/// blocks past the personal stash are length-delimited like every other, so
+/// the ones the Ledger has no use for (respawns, teleports, markers, the ui
+/// block) are stepped over whole. Observed order on the real saves:
+/// 5, 6, 7, 17, then 8 — the depth below is slack, not a count.
+const SKILLS_BLOCK: u32 = 8;
+const SKILL_BLOCK_SEARCH_DEPTH: usize = 16;
+/// A count past this is a desync, not a character — the busiest real save
+/// carries 107 entries (every allocated skill, both mastery bars, the eight
+/// engine defaults, and every devotion star).
+const MAX_PLAUSIBLE_SKILLS: u32 = 4096;
+
+/// Block 8 — the allocated skills, version 8 on the 1.2-era saves. The entry
+/// shape was measured across the real save set, every entry landing exactly
+/// on the block's own trailer: record path, level, an enabled byte and one
+/// the game never sets, three int32s (devotion level, devotion experience,
+/// sublevel), two more flag bytes, then the two auto-cast strings a devotion
+/// binding writes and everything else leaves empty.
+///
+/// The trailer past the entries (a mastery count and a short tail) is
+/// consumed unread — nothing in it is the Ledger's business.
+fn read_skills(cipher: &mut Cipher) -> Result<Vec<AllocatedSkill>, LedgerError> {
+    for _ in 0..SKILL_BLOCK_SEARCH_DEPTH {
+        if cipher.remaining() < 8 {
+            break;
+        }
+        let (block, end) = cipher.block_start()?;
+        let version = cipher.read_u32()?;
+        if block != SKILLS_BLOCK {
+            cipher.consume_to(end)?;
+            cipher.block_end(end)?;
+            continue;
+        }
+        version_corridor(version, 4, 12, "skills block")?;
+        let count = cipher.read_u32()?;
+        if count > MAX_PLAUSIBLE_SKILLS {
+            return Err(LedgerError::CipherWontTurn {
+                detail: format!("{count} skills is not a character"),
+            });
+        }
+        let mut skills = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            let record = cipher.read_str()?;
+            let level = cipher.read_u32()?;
+            cipher.read_byte()?; // enabled
+            cipher.read_byte()?; // never set on any observed save
+            let devotion_level = cipher.read_u32()?;
+            cipher.read_u32()?; // devotion experience
+            cipher.read_u32()?; // sublevel
+            cipher.read_byte()?; // flags the panel has no use for
+            cipher.read_byte()?;
+            cipher.read_str()?; // auto-cast skill (a devotion binding)
+            cipher.read_str()?; // auto-cast controller
+            skills.push(AllocatedSkill {
+                record,
+                level,
+                devotion_level,
+            });
+        }
+        cipher.consume_to(end)?;
+        cipher.block_end(end)?;
+        return Ok(skills);
+    }
+    Ok(Vec::new())
 }
 
 fn parse_character_info(cipher: &mut Cipher) -> Result<CharacterInfo, LedgerError> {

@@ -259,3 +259,189 @@ fn bench_decode_a_real_icon() {
     println!("  dimensions: {}x{}", img.width(), img.height());
     assert!(img.width() >= 16 && img.height() >= 16, "a real icon");
 }
+
+/// [BENCH] THE TRADES — every mastery panel in the install reads: ten trees,
+/// named, with their skills placed at the game's own coordinates and their
+/// connections derived from the game's own connector runs. Reports the shape
+/// of what it read; asserts only what must never regress.
+#[test]
+#[ignore = "bench only — needs the real install"]
+fn bench_read_the_trades_from_the_real_install() {
+    let install = install_root();
+    let cache = std::env::temp_dir().join("smugglers-bench-trades");
+    let _ = std::fs::remove_dir_all(&cache);
+    let mut codex = Codex::open(&install, &cache).expect("open the codex");
+
+    let cold = Instant::now();
+    let trees = codex.trades().expect("read the trades");
+    let cold_ms = cold.elapsed().as_millis();
+    let warm = Instant::now();
+    let again = Codex::open(&install, &cache)
+        .expect("reopen")
+        .trades()
+        .expect("read the trades from cache");
+    let warm_ms = warm.elapsed().as_millis();
+
+    println!(
+        "trades: {} masteries — cold {cold_ms} ms, warm {warm_ms} ms",
+        trees.len()
+    );
+    assert_eq!(again.len(), trees.len(), "the cache serves the same trees");
+
+    let mut total_nodes = 0;
+    let mut unnamed = 0;
+    let mut connected = 0;
+    let mut iconless = 0;
+    for tree in &trees {
+        let roots = tree.nodes.iter().filter(|n| n.parent.is_none()).count();
+        let linked = tree.nodes.len() - roots;
+        total_nodes += tree.nodes.len();
+        connected += linked;
+        unnamed += tree
+            .nodes
+            .iter()
+            .filter(|n| n.name.starts_with("records/"))
+            .count();
+        iconless += tree.nodes.iter().filter(|n| n.icon.is_none()).count();
+        println!(
+            "  {:>2} {:<14} {:>2} skills — {roots} roots, {linked} linked, bar {} (max {})",
+            tree.class_index,
+            tree.name,
+            tree.nodes.len(),
+            tree.bar_record,
+            tree.bar_max_level,
+        );
+        assert!(!tree.name.is_empty(), "every mastery is named");
+        assert!(!tree.nodes.is_empty(), "every mastery has skills");
+        assert!(
+            tree.bar_record.contains("_classtraining_"),
+            "the bar is the mastery record a save carries a level for"
+        );
+        assert!(
+            tree.nodes.iter().all(|n| (1..=9).contains(&n.tier)),
+            "every skill sits in one of the nine columns"
+        );
+    }
+    println!(
+        "  {total_nodes} skills — {connected} on a drawn line, {unnamed} unnamed, {iconless} without an icon"
+    );
+    assert!(
+        trees.len() >= 9,
+        "the base game alone ships six, the expansions the rest"
+    );
+    assert_eq!(unnamed, 0, "every skill resolves a display name");
+    assert!(
+        connected * 2 > total_nodes,
+        "most skills hang off something — a tree with no lines is a list"
+    );
+
+    // One of Soldier's own rows, checked against the panel by hand.
+    let soldier = trees.iter().find(|t| t.name == "Soldier").expect("Soldier");
+    let cadence = soldier
+        .nodes
+        .iter()
+        .find(|n| n.record.ends_with("/cadence1.dbr"))
+        .expect("Cadence");
+    println!(
+        "  Cadence — tier {} (mastery {}), max {}, ultimate {}, icon {:?}",
+        cadence.tier, cadence.unlock_level, cadence.max_level, cadence.ultimate_level, cadence.icon
+    );
+    assert_eq!(cadence.tier, 1);
+    assert_eq!(cadence.unlock_level, 1);
+    assert_eq!(cadence.parent, None, "Cadence is the root of its own row");
+    let discord = soldier
+        .nodes
+        .iter()
+        .find(|n| n.record.ends_with("/cadence1b.dbr"))
+        .expect("Discord");
+    assert_eq!(
+        discord.parent.as_deref(),
+        Some(cadence.record.as_str()),
+        "the transmuter hangs off Cadence"
+    );
+    println!("  Discord — {:?}", discord.conversion);
+}
+
+/// [BENCH] The skill icons decode — they are NOT block-compressed like the
+/// item icons, and the flat-surface path is what makes them readable.
+#[test]
+#[ignore = "bench only — needs the real install"]
+fn bench_decode_a_real_skill_icon() {
+    use smugglers_ledger_lib::icons::{Cabinet, IconState};
+    let install = install_root();
+    let icons = IconState::default();
+    // Both flat depths, one from each row of the same panel: Cadence's icon is
+    // 32-bit BGRA, Blitz's is 24-bit BGR with no alpha channel at all.
+    for bitmap in [
+        "ui/skills/icons/class01/skillicon_cadence1_up.tex",
+        "ui/skills/icons/class01/skillicon_blitz1_up.tex",
+    ] {
+        let png = icons
+            .icon_png(&install, Cabinet::Ui, bitmap)
+            .unwrap_or_else(|| panic!("{bitmap} decodes"));
+        let img = image::load_from_memory(&png).expect("valid PNG");
+        println!(
+            "decoded {bitmap}: {} PNG bytes, {}x{}",
+            png.len(),
+            img.width(),
+            img.height()
+        );
+        assert!(img.width() >= 16 && img.height() >= 16);
+    }
+}
+
+/// [BENCH] The build overlay — every real hand's allocated skills read out of
+/// block 8, and the gear they are wearing grafts ranks on top.
+#[test]
+#[ignore = "bench only — needs the real save set AND the real install"]
+fn bench_read_the_real_builds() {
+    let mut hoard = assemble_hoard(&save_root());
+    let records = distinct_records(&hoard);
+    let cache = std::env::temp_dir().join("smugglers-bench-builds");
+    let mut codex = Codex::open(&install_root(), &cache).expect("open the codex");
+    hoard.resolved = codex.resolve(&records).expect("resolve");
+
+    let builds = smugglers_ledger_lib::ledger::hand_builds(&hoard);
+    let mut with_skills = 0;
+    for build in &builds {
+        let bars: Vec<String> = build
+            .allocated
+            .iter()
+            .filter(|r| r.record.contains("_classtraining_"))
+            .map(|r| {
+                format!(
+                    "{}={}",
+                    r.record.rsplit('/').next().unwrap_or_default(),
+                    r.level
+                )
+            })
+            .collect();
+        println!(
+            "{:<22} lvl {:>2} [{}] — {} skills, {} gear grafts, {} mastery grafts, +{} to all — bars {}",
+            build.hand,
+            build.level,
+            build.class_tag,
+            build.allocated.len(),
+            build.granted.len(),
+            build.mastery_granted.len(),
+            build.all_granted,
+            bars.join(" ")
+        );
+        if !build.allocated.is_empty() {
+            with_skills += 1;
+        }
+        // A hand with no class tag has not picked a mastery yet — it still
+        // carries the engine's own default skills, and no bar.
+        if !build.class_tag.is_empty() {
+            assert!(
+                !bars.is_empty(),
+                "a hand that picked a mastery bought a bar"
+            );
+        }
+    }
+    assert_eq!(
+        with_skills,
+        builds.len(),
+        "every hand that parses reads its skills block"
+    );
+}

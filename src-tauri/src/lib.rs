@@ -17,6 +17,7 @@ mod fixtures;
 pub mod icons;
 pub mod ledger;
 pub mod manifest;
+pub mod trades;
 pub mod warehouse;
 pub mod watch;
 
@@ -114,6 +115,7 @@ pub fn run() {
         .manage(LedgerState::default())
         .manage(WatchState::default())
         .manage(icons::IconState::default())
+        .manage(ledger::TradesState::default())
         .setup(|app| {
             let handle = app.handle().clone();
             // The first turn runs off the main thread: the window paints
@@ -131,6 +133,8 @@ pub fn run() {
             ledger::search_ledger,
             ledger::ledger_overview,
             ledger::item_icon,
+            ledger::skill_icon,
+            ledger::list_trades,
             switch_root,
         ])
         .run(tauri::generate_context!())

@@ -11,6 +11,7 @@ import EmptyShelf from "@/components/EmptyShelf.vue";
 import LedgerPanel from "@/pages/LedgerPanel.vue";
 import CharacterPanel from "@/pages/CharacterPanel.vue";
 import StashPanel from "@/pages/StashPanel.vue";
+import TradesPanel from "@/pages/TradesPanel.vue";
 import { useLedger } from "@/composables/useLedger";
 import ShipmentPrompt from "@/shipment/ShipmentPrompt.vue";
 import { useShipment } from "@/shipment/useShipment";
@@ -33,6 +34,7 @@ const sheetTitle = computed(() => {
     return hand === "" ? "THE MANIFEST" : `THE MANIFEST — ${hand}`;
   }
   if (panel.value === "warehouse") return "THE WAREHOUSE";
+  if (panel.value === "trades") return "THE TRADES";
   return "THE HOARD";
 });
 
@@ -61,6 +63,7 @@ const sheetState = computed(() => {
         <template v-else>
           <LedgerPanel v-if="panel === 'hoard'" />
           <CharacterPanel v-else-if="panel === 'manifest'" />
+          <TradesPanel v-else-if="panel === 'trades'" />
           <StashPanel v-else />
         </template>
         <EmptyShelf v-if="state === 'noInstall'" state="noInstall" muted />
