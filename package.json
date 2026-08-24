@@ -31,7 +31,7 @@
   "devDependencies": {
     "@tauri-apps/cli": "^2",
     "@unocss/preset-attributify": "^66.7.0",
-    "@unocss/preset-icons": "^66.7.0",
+    "@unocss/preset-icons": "^66.8.1",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/test-utils": "^2.4.6",
     "happy-dom": "^20.11.2",
