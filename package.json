@@ -38,7 +38,7 @@
     "oxfmt": "^0.63.0",
     "oxlint": "^1.80.0",
     "oxlint-tsgolint": "^7.0.2001",
-    "typescript": "~5.6.2",
+    "typescript": "~7.0.2",
     "unocss": "^66.8.1",
     "vite": "^8.2.2",
     "vitest": "^4.1.11",
