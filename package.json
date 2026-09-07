@@ -34,7 +34,7 @@
     "@unocss/preset-icons": "^66.8.1",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/test-utils": "^2.5.0",
-    "happy-dom": "^20.11.6",
+    "happy-dom": "^20.11.15",
     "oxfmt": "^0.63.0",
     "oxlint": "^1.80.0",
     "oxlint-tsgolint": "^7.0.2001",
