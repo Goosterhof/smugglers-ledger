@@ -37,7 +37,7 @@
     "happy-dom": "^20.14.3",
     "oxfmt": "^0.63.0",
     "oxlint": "^1.82.0",
-    "oxlint-tsgolint": "^7.0.2001",
+    "oxlint-tsgolint": "^7.0.2002",
     "typescript": "~5.6.2",
     "unocss": "^66.10.2",
     "vite": "^8.3.0",
