@@ -34,7 +34,7 @@ sha2 = "0.11"
 # The watch: save-file change events, debounced in watch.rs.
 notify = "8"
 # Documents/ and app-data paths for discovery and the codex cache.
-dirs = "6"
+dirs = "7"
 image = { version = "0.25", default-features = false, features = ["png"] }
 image_dds = { version = "0.7", default-features = false, features = ["ddsfile", "image"] }
 base64 = "0.23"
