@@ -25,7 +25,7 @@
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-process": "^2.4.0",
     "@tauri-apps/plugin-updater": "^2.14.0",
-    "@unocss/reset": "^66.10.5",
+    "@unocss/reset": "^66.11.0",
     "vue": "^3.5.43"
   },
   "devDependencies": {
