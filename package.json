@@ -36,7 +36,7 @@
     "@vue/test-utils": "^2.5.1",
     "happy-dom": "^21.0.4",
     "oxfmt": "^0.75.0",
-    "oxlint": "^1.89.0",
+    "oxlint": "^1.90.0",
     "oxlint-tsgolint": "^7.0.2005",
     "typescript": "~5.6.2",
     "unocss": "^66.12.0",
