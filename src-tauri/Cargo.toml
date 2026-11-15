@@ -41,7 +41,7 @@ base64 = "0.23"
 
 [target.'cfg(windows)'.dependencies]
 # Steam names its own install root in the registry; discovery reads it, never guesses.
-winreg = "0.55"
+winreg = "0.56"
 
 [dev-dependencies]
 # Fixture-tree scaffolding for the discovery/ledger/watch integration tests —
