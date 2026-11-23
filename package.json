@@ -33,7 +33,7 @@
     "@unocss/preset-attributify": "^66.10.2",
     "@unocss/preset-icons": "^66.13.0",
     "@vitejs/plugin-vue": "^6.0.11",
-    "@vue/test-utils": "^2.5.1",
+    "@vue/test-utils": "^2.6.0",
     "happy-dom": "^21.0.4",
     "oxfmt": "^0.78.0",
     "oxlint": "^1.93.0",
